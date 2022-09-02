@@ -1,0 +1,2958 @@
+#+TITLE: SQL Basics (with MySQL)
+#+AUTHOR: Rahul M. Juliato
+
+This is all written in Brazillian Portuguese. Sorry, no English
+version yet.
+
+Elaborado como guia de estudos durante a leitura de `Learning SQL` por
+Alan Beaulieu.
+
+* Criando Banco e Usuário
+mysql -u root -p
+
+create database bank;
+
+
+grant all privileges on bank.* to 'rmj'@'localhost' identified by 'xyz';
+(A linha acima não funciona mais... ler em seguida)
+
+(A partir do mysql 8 não se pode criar o usuário implicitamente atribuindo
+para ele os poderes, deve-se primeiro criar o usuário)
+
+CREATE USER 'rmj'@'localhost' IDENTIFIED BY '123';
+
+grant all privileges on bank.* to 'rmj'@'localhost';
+
+FLUSH PRIVILEGES;
+
+quit;
+
+* Conectanco via CLI
+mysql -u rmj -p
+
+use bank;
+
+ou ainda...
+
+mysql -u rmj -p bank
+
+* Importando banco de arquivo
+OBS.: é aqui que se deve importar o .sql de exemplo. Com o bank selecionado:
+Source LearningSQLExample.sql
+
+Confira com o SHOW TABLES; DESC ...; etc.
+
+
+SELECT now();
+
+ou para compatibilidade com Oracle:
+
+SELECT now() from dual;
+
+SHOW CHARACTER SET;
+
+* Criando tabela
+mysql> CREATE TABLE person
+    -> (person_id SMALLINT UNSIGNED,
+    -> fname VARCHAR(20),
+    -> lname VARCHAR(20),
+    -> gender ENUM('M','F'),
+    -> birth_date DATE,
+    -> street VARCHAR(30),
+    -> city VARCHAR(20),
+    -> state VARCHAR(20),
+    -> country VARCHAR(20),
+    -> postal_code VARCHAR(20),
+    -> CONSTRAINT pk_person PRIMARY KEY (person_id)
+    -> );
+
+DESC person;
+
+mysql> CREATE TABLE favorite_food
+    -> (person_id SMALLINT UNSIGNED,
+    -> food VARCHAR(20),
+    -> CONSTRAINT pk_favorite_food PRIMARY KEY (person_id, food),
+    -> CONSTRAINT fk_fav_food_person_id FOREIGN KEY (person_id)
+    -> REFERENCES person(person_id)
+    -> );
+
+DESC favorite_food;
+
+
+Antes de popoular a tabela, ativar o incrementador de chaves
+
+O mysql tem agora um lock para checar se está alterando uma chave estrangeira, pra alterar precisa desligar esse check, depois religá-lo.
+
+SET FOREIGN_KEY_CHECKS = 0;
+ALTER TABLE person MODIFY person_id SMALLINT UNSIGNED AUTO_INCREMENT;
+SET FOREIGN_KEY_CHECKS = 1;
+
+
+mysql> INSERT INTO person
+    -> (person_id, fname, lname, gender, birth_date)
+    -> VALUES (null, 'William', 'Turner', 'M', '1972-05-27');
+
+SELECT person_id, fname, lname, birth_date FROM person;
+
+SELECT person_id, fname, lname, birth_date
+    -> FROM person
+    -> WHERE person_id = 1;
+
+SELECT person_id, fname, lname, birth_date
+    -> FROM person
+    -> WHERE lname = 'Turner';
+
+mysql> INSERT INTO favorite_food
+    -> (person_id, food)
+    -> VALUES
+    -> (1, 'pizza');
+Query OK, 1 row affected (0,01 sec)
+
+mysql> INSERT INTO favorite_food
+    -> (person_id, food)
+    -> VALUES
+    -> (1, 'cookies');
+Query OK, 1 row affected (0,00 sec)
+
+mysql> INSERT INTO favorite_food
+    -> (person_id, food)
+    -> VALUES
+    -> (1, 'nachos');
+Query OK, 1 row affected (0,01 sec)
+
+SELECT food
+    -> FROM favorite_food
+    -> WHERE person_id = 1
+    -> ORDER BY food;
+
+mysql> INSERT INTO person
+    -> (person_id, fname, lname, gender, birth_date, street, city, state, country, postal_code)
+    -> VALUES
+    -> (null, 'Susan', 'Smith', 'F', '1975-11-02', '23 Maple St.', 'Arlington', 'VA', 'USA', '20220');
+
+SELECT person_id, fname, lname, birth_date
+    -> FROM person;
+
+* Mostrando saída como XML
+SELECT * FROM favorite_food
+
+(se quiser saída em XML, logar com mysql -u rmj -p --xml bank)
+
+* Realizando Update em Tabela
+mysql> UPDATE person
+    -> SET
+    -> street = '1225 Tremont St.',
+    -> city = 'Boston',
+    -> state = 'MA',
+    -> country = 'USA',
+    -> postal_code = '02138'
+    -> WHERE person_id = 1;
+
+SELECT * FROM person; 
+
+mysql> DELETE FROM person
+    -> WHERE person_id = 2;
+
+
+Testando alguns erros:
+
+mysql> INSERT INTO person
+    -> (person_id, fname, lname, gender, birth_date)
+    -> VALUES
+    -> (1, 'Charles', 'Fulton', 'M', '1968-01-15');
+ERROR 1062 (23000): Duplicate entry '1' for key 'person.PRIMARY'
+mysql> INSERT INTO favorite_food
+    -> (person_id, food)
+    -> VALUES
+    -> (000, 'lasagna');
+ERROR 1452 (23000): Cannot add or update a child row: a foreign key constraint fails (`bank`.`favorite_food`, CONSTRAINT `fk_fav_food_person_id` FOREIGN KEY (`person_id`) REFERENCES `person` (`person_id`))
+
+mysql> UPDATE person
+    -> SET birth_date = 'DEC-21-1980'
+    -> WHERE person_id = 1;
+ERROR 1292 (22007): Incorrect date value: 'DEC-21-1980' for column 'birth_date' at row 1
+
+mysql> UPDATE person
+    -> SET birth_date = str_to_date('DEC-21-1980', '%b-%d-%Y')
+    -> WHERE person_id = 1;
+Query OK, 1 row affected (0,01 sec)
+Rows matched: 1  Changed: 1  Warnings: 0
+
+
+Especificando o formato no lugar de confiar na auto formatação:
+mysql> UPDATE person
+    -> SET birth_date = str_to_date('DEC-21-1980', '%b-%d-%Y')
+    -> WHERE person_id = 1;
+Query OK, 1 row affected (0,01 sec)
+Rows matched: 1  Changed: 1  Warnings: 0
+
+* Mostrar/Deletar tabelas
+SHOW TABLES;
+
+DROP TABLE favorite_food;
+
+DROP TABLE person;
+
+SHOW TABLES;
+
+DESC costumer;
+
+* Realizando consultas
+Consultas (querys) CAP 3
+
+SELECT fname, lname
+FROM employee;
+
+SELECT * FROM department;
+
+SELECT dept_id, name
+FROM employee;
+
+SELECT name
+FROM department;
+
+mysql> SELECT emp_id,
+    -> 'ACTIVE',
+    -> emp_id * 3.14159,
+    -> UPPER(lname)
+    -> FROM employee;
+
+mysql> SELECT emp_id, 'ACTIVE', emp_id * 3.14159, UPPER(lname) FROM employee;
+
+mysql> SELECT VERSION(),
+    -> USER(),
+    -> DATABASE();
++-----------+---------------+------------+
+| VERSION() | USER()        | DATABASE() |
++-----------+---------------+------------+
+| 8.0.22    | rmj@localhost | bank       |
++-----------+---------------+------------+
+1 row in set (0,00 sec)
+
+
+Abaixo mostra como colocar um alias na coluna
+- Sem AS
+mysql> SELECT emp_id,
+    -> 'ACTIVE' status,
+    -> emp_id * 3.14159 empid_x_pi,
+    -> UPPER(lname) last_name_upper
+    -> FROM employee;
+
+- Com AS
+mysql> SELECT emp_id,
+    -> 'ACTIVE' AS status,
+    -> emp_id * 3.14159 AS empid_x_pi,
+    -> UPPER(lname) AS last_name_upper
+    -> FROM employee;
+
+O resultado é o mesmo, AS é uma boa prática, no entanto.
+
+
+mysql> SELECT cust_id
+    -> FROM account;
+
+para eliminar os duplicados acima:
+
+mysql> SELECT DISTINCT cust_id
+    -> FROM account;
+
+OBS: Use somente se tiver certeza que haverão dados
+repetidos. Esse comando também ordena para entrega, o que
+/pode ser bastante custoso com muitas entradas
+
+* Criando Subconsultas
+
+Subconsultas
+
+mysql> SELECT e.emp_id, e.fname, e.lname
+    -> FROM (SELECT emp_id, fname, lname, start_date, title
+    ->       FROM employee) e;
+
+* Criando Views
+
+mysql> CREATE VIEW employee_vw AS
+    -> SELECT emp_id, fname, lname,
+    ->   YEAR(start_date) start_year
+    -> FROM employee;
+
+SELECT * FROM employee_vw;
+
+Subconsulta na VIEW
+mysql> SELECT emp_id, start_year
+    -> FROM employee_vw;
+
+* Criando vínculos de tabelas JOIN, WHERE...
+
+mysql> SELECT employee.emp_id, employee.fname, employee.lname,
+    ->        department.name dept_name
+    -> FROM   employee INNER JOIN department
+    ->   ON   employee.dept_id = department.dept_id;
+
+
+Definindo aliases de tabela (com e sem AS)
+
+mysql> SELECT e.emp_id, e.fname, e.lname,
+    ->        d.name dept_name
+    -> FROM employee e INNER JOIN department d
+    ->   ON e.dept_id = d.dept_id;
+
+mysql> SELECT e.emp_id, e.fname, e.lname,
+    ->        d.name dept_name
+    -> FROM   employee AS e INNER JOIN department AS d
+    ->   ON   e.dept_id = d.dept_id;
+
+
+mysql> SELECT emp_id, fname, lname, start_date, title
+    -> FROM employee
+    -> WHERE title = 'Head Teller';
+
+mysql> SELECT emp_id, fname, lname, start_date, title
+    -> FROM employee
+    -> WHERE title = 'Head Teller'
+    ->       AND start_date > '2002-01-01';
+
+mysql> SELECT emp_id, fname, lname, start_date, title
+    -> FROM employee
+    -> WHERE title = 'Head Teller'
+    ->    OR start_date > '2006-01-01';
+
+SELECT emp_id, fname, lname, start_date, title
+    -> FROM employee
+    -> WHERE (title = 'Head Teller'AND start_date > '2006-01-01')
+    ->    OR (title = 'Teller' AND start_date > '2007-01-01');
+
+* Listar com Group By e Having e usando ORDER BY
+Lista os departamentos com mais de dois funcionários
+
+mysql> SELECT d.name, count(e.emp_id) num_employees
+    -> FROM department d INNER JOIN employee e
+    ->   ON d.dept_id = e.dept_id
+    -> GROUP BY d.name
+    -> HAVING count(e.emp_id) > 2;
+
+
+Compara com e sem ordem
+
+mysql> SELECT open_emp_id, product_cd
+    -> FROM account;
+
+mysql> SELECT open_emp_id, product_cd
+    -> FROM account
+    -> ORDER BY open_emp_id;
+
+
+
+Ordenação crescente é padrão:
+
+mysql> SELECT open_emp_id, product_cd
+    -> FROM account
+    -> ORDER BY open_emp_id, product_cd;
+
+
+Se quiser decrescente:
+
+mysql> SELECT account_id, product_cd, open_date, avail_balance
+    -> FROM account
+    -> ORDER BY avail_balance DESC;
+
+
+Ord por meio de expressões:
+
+mysql> SELECT cust_id, cust_type_cd, city, state, fed_id
+    -> FROM customer
+    -> ORDER BY RIGHT(fed_id, 3);
+
+
+Oder by ref. num.
+
+mysql> SELECT emp_id, title, start_date, fname, lname
+    -> FROM employee
+    -> ORDER BY 2,5;
+
+* Condições de Filtragem
+
+De igualdade:
+
+mysql> SELECT pt.name product_type, p.name product
+    -> FROM product p INNER JOIN product_type pt
+    ->   ON p.product_type_cd = pt.product_type_cd
+    -> WHERE pt.name = 'Customer Accounts';
+
+
+De desigualdade:
+
+mysql> SELECT pt.name product_type, p.name product
+    -> FROM product p INNER JOIN product_type pt
+    ->   ON p.product_type_cd = pt.product_type_cd
+    -> WHERE pt.name <> 'Customer Accounts';
+
+De intervalo:
+
+mysql> SELECT emp_id, fname, lname, start_date
+    -> FROM employee
+    -> WHERE start_date < '2007-01-01';
+
+mysql> SELECT emp_id, fname, lname, start_date
+    -> FROM employee
+    -> WHERE start_date < '2007-01-01'
+    ->   AND start_date >= '2002-01-01'
+
+Usando between:
+
+mysql> SELECT emp_id, fname, lname, start_date
+    -> FROM employee
+    -> WHERE start_date BETWEEN '2002-01-01' AND '2007-01-01';
+
+mysql> SELECT account_id, product_cd, cust_id, avail_balance
+    -> FROM account
+    -> WHERE avail_balance BETWEEN 3000 AND 5000;
+
+mysql> SELECT cust_id, fed_id
+    -> FROM customer
+    -> WHERE cust_type_cd = 'I'
+    ->   AND fed_id BETWEEN '500-00-0000' AND '999-99-9999';
+
+
+Usando IN
+
+mysql> SELECT account_id, product_cd, cust_id, avail_balance
+    ->   FROM account
+    ->   WHERE product_cd = 'CHK' OR product_cd = 'SAV'
+    ->      OR product_cd = 'CD' OR product_cd = 'MM';
+
+mysql> SELECT account_id, product_cd, cust_id, avail_balance
+    ->   FROM account
+    ->  WHERE product_cd IN('CHK', 'SAV', 'CD', 'MM');
+
+
+Usando Subconsultas
+
+mysql> SELECT account_id, product_cd, cust_id, avail_balance
+    -> FROM account
+    -> WHERE product_cd IN (SELECT product_cd FROM product
+    ->                      WHERE product_type_cd = 'ACCOUNT');
+
+Usando NOT IN
+
+mysql> SELECT account_id, product_cd, cust_id, avail_balance
+    ->   FROM account
+    ->  WHERE product_cd NOT IN ('CHK', 'SAV', 'CD', 'MM');
+
+
+Condições de Correspondência
+
+mysql> SELECT emp_id, fname, lname
+    ->  FROM employee
+    -> WHERE LEFT(lname, 1) = 'T';
+
+
+Usando Curingas
+mysql> SELECT lname
+    ->   FROM employee
+    ->  WHERE lname LIKE '_a%e%';
+
+mysql> SELECT cust_id, fed_id
+    ->   FROM customer
+    ->  WHERE fed_id LIKE '___-__-____';
+
+mysql> SELECT emp_id, fname, lname
+    ->   FROM employee
+    ->  WHERE lname LIKE 'F%' OR lname LIKE 'G%';
+
+
+Usando REGEXP
+
+mysql> SELECT emp_id, fname, lname
+    ->   FROM employee
+    ->  WHERE lname REGEXP '^[FG]';
+
+
+Trabalhando com NULL
+
+mysql> SELECT emp_id, fname, lname, superior_emp_id
+    ->   FROM employee
+    ->  WHERE superior_emp_id IS NULL;
+
+mysql> SELECT emp_id, fname, lname, superior_emp_id
+    ->   FROM employee
+    ->  WHERE superior_emp_id IS NOT NULL;
+
+mysql> SELECT emp_id, fname, lname, superior_emp_id
+    ->   FROM employee
+    ->  WHERE superior_emp_id != 6;
+
+(o de cima não retorna o valor NULL que existe na tabela, o debaixo sim)
+
+mysql> SELECT emp_id, fname, lname, superior_emp_id
+    ->   FROM employee
+    ->  WHERE superior_emp_id != 6 OR superior_emp_id IS NULL;
+
+* Realizando INNER JOIN
+* Usando Subconsultas como Tabelas
+
+SELECT a.account_id, a.cust_id, a.open_date, a.product_cd
+  FROM account a INNER JOIN
+    (SELECT emp_id, assigned_branch_id
+       FROM employee
+      WHERE start_date < '2007-01-01'
+        AND (title = 'Teller' OR title = 'Head Teller')) e
+   ON a.open_emp_id = e.emp_id
+    INNER JOIN
+     (SELECT branch_id
+        FROM branch
+       WHERE name = 'Woburn Branch') b
+    ON e.assigned_branch_id = b.branch_id;
+
+Verifique que não há clausula WHERE no SELECT principal.
+
+
+Exemplo: existem chaves estrangeiras tanto na tabela account como na
+tabela employee, se quiser incluir ambas, é necessário dar um alias
+diferente, como em:
+
+
+SELECT a.account_id, e.emp_id,
+       b_a.name open_branch, b_e.name emp_branch
+  FROM account a INNER JOIN branch b_a
+    ON a.open_branch_id = b_a.branch_id
+    INNER JOIN employee e
+    ON a.open_emp_id = e.emp_id
+    INNER JOIN branch b_e
+    ON e.assigned_branch_id = b_e.branch_id
+ WHERE a.product_cd = 'CHK';
+
+
+Autojunções
+
+SELECT e.fname, e.lname,
+       e_mgr.fname mgr_fname, e_mgr.lname mgr_lname
+  FROM employee e INNER JOIN employee e_mgr
+    ON e.superior_emp_id = e_mgr.emp_id;
+
+Para utilizar a mesma tabela duas vezes, foram utilizados aliases.
+Repare que o presidente que tem superior NULL não foi incluído. 
+Se quisesse deveria utilizar junção externa que será visto no futuro.
+
+
+Junções equivalentes vs. não equivalentes
+
+Podemos utilizar mais de uma condição em ON, também diferenças, etc.
+
+SELECT e.emp_id, e.fname, e.lname, e.start_date
+  FROM employee e INNER JOIN product p
+    ON e.start_date >= p.date_offered
+   AND e.start_date <= p.date_retired
+ WHERE p.name = 'no-fee checking';
+
+
+Para organizar partidas de xadrez de todos contra todos (menos eles
+mesmos)
+
+SELECT e1.fname, e1.lname, 'VS' vs, e2.fname, e2.lname
+  FROM employee e1 INNER JOIN employee e2
+    ON e1.emp_id != e2.emp_id
+ WHERE e1.title = 'Teller' AND e2.title = 'Teller';
+
+
+Problema é que há duplicatas! Para nós e1 vs e2 é o mesmo que e2 vs e1.
+Truque, utilizar emp_id <, para que só o mais alto apareça.
+
+SELECT e1.fname, e1.lname, 'VS' vs, e2.fname, e2.lname
+  FROM employee e1 INNER JOIN employee e2
+    ON e1.emp_id < e2.emp_id
+ WHERE e1.title = 'Teller' AND e2.title = 'Teller';
+
+
+Condições de junção vs condições de filtro
+
+SELECT a.account_id, a.product_cd, c.fed_id
+  FROM account a INNER JOIN customer c
+    ON a.cust_id = c.cust_id
+ WHERE c.cust_type_cd = 'B';
+
+SELECT a.account_id, a.product_cd, c.fed_id
+  FROM account a INNER JOIN customer c
+    ON a.cust_id = c.cust_id
+     AND c.cust_type_cd = 'B';
+
+SELECT a.account_id, a.product_cd, c.fed_id
+  FROM account a INNER JOIN customer c
+ WHERE a.cust_id = c.cust_id
+   AND c.cust_type_cd = 'B';
+
+Todos retornam o mesmo resultado, mas o primeiro mostra melhor o que
+é a condição de junção e o que é a condição de filtragem. Fica a cargo
+do programador escolher onde colocar o que.
+
+
+Ex 5.2
+SELECT a.account_id, c.fed_id, p.name
+  FROM customer c INNER JOIN account a
+    ON c.cust_id = a.cust_id
+    INNER JOIN product p
+    ON a.product_cd = p.product_cd
+  WHERE c.cust_type_cd = 'I';
+
+
+Ex 5.3
+
+SELECT e.emp_id, e.fname, e.lname
+  FROM employee e INNER JOIN employee mgr
+    ON e.superior_emp_id = mgr.emp_id
+ WHERE e.dept_id != mgr.dept_id;
+
+* Usando UNION 
+
+SELECT 1 num, 'abc' str
+ UNION
+SELECT 9 num, 'xyz' str;
+
+
+SELECT 'IND' type_cd, cust_id, lname name
+  FROM individual
+ UNION ALL
+SELECT 'BUS' type_cd, cust_id, name
+ FROM business;
+
+UNION (remove duplicatas)
+UNION ALL (não remove duplicatas)
+
+
+SELECT 'IND' type_cd, cust_id, lname name
+  FROM individual
+ UNION ALL
+SELECT 'BUS' type_cd, cust_id, name
+  FROM business
+ UNION ALL
+SELECT 'BUS' type_cd, cust_id, name
+  FROM business;
+
+
+SELECT emp_id
+  FROM employee
+ WHERE assigned_branch_id = 2
+   AND (title = 'Teller'OR title = 'Head Teller')
+ UNION ALL
+SELECT DISTINCT open_emp_id
+  FROM account
+ WHERE open_branch_id = 2;
+
+
+SELECT emp_id
+  FROM employee
+ WHERE assigned_branch_id = 2
+   AND (title = 'Teller' OR title = 'Head Teller')
+ UNION
+SELECT DISTINCT open_emp_id
+  FROM account
+ WHERE open_branch_id = 2;
+
+* Usando o INTERSECT
+
+
+SELECT emp_id, fname, lname
+  FROM employee
+INSTERSECT
+  SELECT cust_id, fname, lname
+  FROM individual;
+
+
+SELECT emp_id
+  FROM employee
+ WHERE assigned_branch_id = 2
+   AND (title = 'Teller' OR title = 'Head Teller')
+INTERSECT
+SELECT DISTINCT open_emp_id
+  FROM account
+ WHERE open_branch_id = 2;
+
+
+INTERSECT (elimina duplicatas)
+INTERSECT ALL (não elimina duplicatas)
+
+* Usando o EXCEPT
+
+SELECT emp_id
+  FROM employee
+ WHERE assigned_branch_id = 2
+   AND (title = 'Teller' OR title = 'Head Teller')
+ EXCEPT
+SELECT DISTINCT open_emp_id
+  FROM account
+ WHERE open_branch_id = 2;
+
+
+(no mysql não rola o except... merda...)
+
+* Operações em conjunto
+
+SELECT emp_id, assigned_branch_id
+  FROM employee
+ WHERE title = 'Teller'
+ UNION 
+SELECT open_emp_id, open_branch_id
+  FROM account
+ WHERE product_cd = 'SAV'
+ORDER BY emp_id;
+
+
+SELECT emp_id, assigned_branch_id
+  FROM employee
+ WHERE title = 'Teller'
+UNION
+SELECT open_emp_id, open_branch_id
+  FROM account
+ WHERE product_cd = 'SAV'
+ORDER BY open_emp_id;
+
+
+SELECT cust_id
+  FROM account
+ WHERE product_cd IN('SAV', 'MM')
+UNION ALL
+SELECT a.cust_id
+ FROM account a INNER JOIN branch b
+   ON a.open_branch_id = b.branch_id
+ WHERE b.name = 'Woburn Branch'
+UNION
+SELECT cust_id
+  FROM account
+ WHERE avail_balance BETWEEN 500 AND 2500;
+
+
+SELECT cust_id
+  FROM account
+ WHERE product_cd IN('SAV', 'MM')
+UNION
+SELECT a.cust_id
+FROM account a INNER JOIN branch b
+  ON a.open_branch_id = b.branch_id
+WHERE b.name = 'Woburn Branch'
+UNION ALL
+SELECT cust_id
+  FROM account
+ WHERE avail_balance BETWEEN 500 AND 2500;
+
+* Geração, Conversão e Manipulação de Dados (Strings)
+** Tipos de dados
+
+CHAR
+MySQL - 255
+Oracle Database - 2000
+SQL Server - 8000
+
+varchar
+MySQL - 65535
+Oracle (varchar2) - 4000
+SQL Server - 8000
+
+text (MySQL e SQL Server) ou CLOB (Character Large Object; Oracle Database)
+
+MySQL - tinytext, text, mediumtext e long text (até 4GB)
+SQL Server tem um só texto para dados até 2GB
+Oracle - usa o CLOB até 128TB
+
+** Tabela de teste
+CREATE TABLE string_tbl
+   (char_fld CHAR(30),
+   vchar_fld VARCHAR(30),
+   text_fld TEXT
+   );
+
+** Inserção de valores
+INSERT INTO string_tbl (char_fld, vchar_fld, text_fld)
+VALUES ('This is char data',
+        'This is varchar data',
+        'This is text data');
+
+
+tentando ultrapassar o limite:
+
+UPDATE string_tbl
+SET vchar_fld = 'This is a piece of extremely long varchar data';
+
+(dá erro pq estoura)
+
+
+O MySQL > 5.1 usa o modo strict, esse erro não inclui nada na tabela.
+Se colocar no modo ANSI, a saída é truncada no máximo e um aviso é emitido.
+
+Para ver o modo que o MySQL está utilizando:
+SELECT @@session.sql_mode;
+
+Para setar o modo ANSI:
+SET sql_mode='ansi';
+
+
+Agora fazer novamente:
+
+UPDATE string_tbl
+SET vchar_fld = 'This is a piece of extremely long varchar data';
+
+Para ver o WARNING, utilizar: 
+SHOW WARNINGS;
+
+
+Incluindo aspas:
+UPDATE string_tbl
+SET text_fld = 'This string doesn't work';
+
+O caractere de escape é ', então acima deveria ser:
+UPDATE string_tbl
+SET text_fld = 'This string doesn''t work';
+
+
+No Oracle database e no Mysql, \ também funciona:
+UPDATE string_tbl
+SET text_fld = 'This string doesn\'\'t work';
+
+
+Vamos recuperar o texto:
+SELECT text_fld
+  FROM string_tbl;
+
+O ' volta sem o escape, mas se você quer enviar para tratamento da string, 
+pode gerar problemas, então pode-se utilizar a função quote.
+
+SELECT quote(text_fld)
+  FROM string_tbl;
+
+** Caracteres especiais
+
+SELECT 'abcdefg', CHAR(97,98,99,100,101,102,103);
+
+chr()   <-   no caso do Oracle
+
+SELECT CHAR(128,129,130,131,132,133,134,135,136,137);
+
+(não tá aparecendo essa merda, tive que suar cast, do contrário 
+entra em modo hexa)
+
+SELECT CAST(CHAR(97, 98, 99, 100, 101, 102, 103, 104) AS CHAR);
+
+
+Retirando o número ASCII de um caractere:
+SELECT ASCII('á');
+
+** Concatenar
+
+SELECT CONCAT('danke sch', CHAR(148), 'n');
+
+(ainda não apareceu, se não hexa, então...)
+SELECT CAST(CONCAT('danke sch', CHAR(148), 'n') AS CHAR);
+** Funções 
+
+Antes de mais nada, deletar todos os dados da tabela:
+
+DELETE FROM string_tbl;
+
+Populando...
+
+INSERT INTO string_tbl (char_fld, vchar_fld, text_fld)
+VALUES ('This string is 28 characters', 
+        'This string is 28 characters', 
+        'This string is 28 characters');
+
+
+Funções de string que retornam números.
+
+SELECT LENGTH(char_fld) char_length,
+  LENGTH(vchar_fld) varchar_length,
+  LENGTH(text_fld) text_length
+FROM string_tbl;
+
+LENGTH remove os espaços em branco à direita, então se o campo tem 30
+espaços mas somente 28 são utilizados, 28 são mostrados.
+
+SELECT POSITION('characters' IN vchar_fld)
+  FROM string_tbl;
+
+
+Em SQL, o primeiro índice de uma string é 1. 0 só é retornado no caso de
+um erro.
+
+LOCATE é uma função proprietária que procura a partir de uma posição.
+
+SELECT LOCATE('is', vchar_fld, 5)
+  FROM string_tbl;
+
+
+No Oracle: usa-se as funções instr() (imita a position com 2 argumentos
+           e imita a locate quando recebe 3 argumentos)
+
+O SQL Server imita o Oracle, mas com a função charindx()
+
+
+Agora deletando novamente os dados:
+
+DELETE FROM string_tbl;
+
+INSERT INTO string_tbl(vchar_fld) VALUES('abcd');
+INSERT INTO string_tbl(vchar_fld) VALUES('xyz');
+INSERT INTO string_tbl(vchar_fld) VALUES('QRSTUV');
+INSERT INTO string_tbl(vchar_fld) VALUES('qrstuv');
+INSERT INTO string_tbl(vchar_fld) VALUES('12345');
+
+
+SELECT vchar_fld
+  FROM string_tbl
+  ORDER BY vchar_fld;
+
+
+No MySQL temos o strcmp();
+
+SELECT STRCMP('12345', '12345') 12345_12345,
+       STRCMP('abcd', 'xyz') abcd_xyz,
+       STRCMP('abcd', 'QRSTUV') abcd_QRSTUV,
+       STRCMP('qrstuv', 'QRSTUV') qrtuv_QRSTUV,
+       STRCMP('12345', 'xyz') 12345_xyz,
+       STRCMP('xyz', 'qrstuv') xyz_qrstuv;
+
+Retorna: 
+-1 se a string aparece antes da segunda em ordem de classificação
+ 0 se forem idênticas
+ 1 se a primeira aparecer depois da segunda em ordem de classificação
+
+
+
+Também podemos comparar com o like:
+
+SELECT name, name LIKE '%ns' ends_in_ns
+  FROM department;
+
+
+SELECT cust_id, cust_type_cd, fed_id,
+       fed_id REGEXP '.{3}-.{2}-.{4}' is_ss_no_format
+  FROM customer;
+
+
+
+Funções de string que retornam Strings
+
+DELETE FROM string_tbl;
+
+INSERT INTO string_tbl (text_fld)
+VALUES ('This string was 29 characteres');
+
+
+para aumentar essa frase:
+
+
+UPDATE string_tbl
+   SET text_fld = CONCAT(text_fld, ',  but now it is longer');
+
+SELECT text_fld
+  FROM string_tbl;
+
+SELECT CONCAT(fname, ' ',  lname, ' has been a ', title,
+             ' since ', start_date) emp_narrative
+  FROM employee
+ WHERE title = 'Teller' OR title = 'Head Teller';
+
+
+O anterior não funciona no oracle, já que seu CONCAT aceita apenas
+duas strings como entrada, não convertendo automaticamente). No 
+oracle um operador de concatenação deve ser utilizado, como em:
+
+SELECT fname || ' ' || lname || ' has been a ' ||
+       title || ' since ' || start_date emp_narrative
+  FROM employee
+ WHERE title = 'Teller' OR title = 'Head Teller';
+
+No SQL Server o mesmo problema ocorre, mas utiliza-se o operador + para
+realização da concatenação.
+
+
+Temos também a função INSERT(string, pos in, num chars, string);
+Se num chars for 0, é inserido e tudo é empurrado para a direita.
+
+SELECT INSERT('goodbye world', 9, 0, 'cruel ') string;
+
+SELECT INSERT('goodbye world', 1, 7, 'hello') string;
+
+
+No oracle só existe o replace(), utilizado assim:
+SELECT REPLACE('goodbye world', 'goodbye', 'hello') string
+FROM dual;
+
+No SQL Server, a função que faz as vezes do INSERT do MySQL é STUFF
+SELECT STUFF('hello world', 1, 5, 'goodbye cruel');
+
+
+Também podemos selecionar uma  SUBSTRING com:
+SELECT SUBSTRING('goodbye cruel world', 9, 5);
+
+* Geração, Conversão e Manipulação de Dados (Numéricos)
+** Operações
+SELECT (37*59) / (78-(8*6));
+
+SELECT MOD(10,4);
+
+SELECT MOD(22.75, 5);
+
+NO SQL Server utiliza-se %, como em 10%4
+
+SELECT POW(2,8);
+
+No oracle fica SELECT POWER(2,8);
+
+
+SELECT POW(2,10) kilobyte, POW(2,20) megabyte,
+       POW(2,30) gigabyte, POW(2,40) terabyte;
+
+** Precisão numérica
+
+SELECT CEIL(72.445), FLOOR(72.445);
++--------------+---------------+
+| CEIL(72.445) | FLOOR(72.445) |
++--------------+---------------+
+|           73 |            72 |
++--------------+---------------+
+
+SELECT CEIL(72.00000000001), FLOOR(72.99999999999);
++----------------------+-----------------------+
+| CEIL(72.00000000001) | FLOOR(72.99999999999) |
++----------------------+-----------------------+
+|                   73 |                    72 |
++----------------------+-----------------------+
+
+SELECT ROUND(72.49999), ROUND(72.5), ROUND(72.50001);
++-----------------+-------------+-----------------+
+| ROUND(72.49999) | ROUND(72.5) | ROUND(72.50001) |
++-----------------+-------------+-----------------+
+|              72 |          73 |              73 |
++-----------------+-------------+-----------------+
+
+SELECT ROUND(72.0909, 1), ROUND(72.0909, 2), ROUND(72.0909, 3);
++-------------------+-------------------+-------------------+
+| ROUND(72.0909, 1) | ROUND(72.0909, 2) | ROUND(72.0909, 3) |
++-------------------+-------------------+-------------------+
+|              72.1 |             72.09 |            72.091 |
++-------------------+-------------------+-------------------+
+
+
+Já o TRUNCATE() descarta o número, sem arredondamentos. No SQL SERVER
+não há truncate(), mas o próprio round leva um terceiro argumento que
+se diferente de 0, trunca.
+
+SELECT TRUNCATE(72.0909, 1), TRUNCATE(72.0909, 2), TRUNCATE(72.0909,3);
++----------------------+----------------------+---------------------+
+| TRUNCATE(72.0909, 1) | TRUNCATE(72.0909, 2) | TRUNCATE(72.0909,3) |
++----------------------+----------------------+---------------------+
+|                 72.0 |                72.09 |              72.090 |
++----------------------+----------------------+---------------------+
+
+SELECT ROUND(17, -1), TRUNCATE(17, -1);
++---------------+------------------+
+| ROUND(17, -1) | TRUNCATE(17, -1) |
++---------------+------------------+
+|            20 |               10 |
++---------------+------------------+
+
+USE BANK;
+SELECT account_id, SIGN(avail_balance), ABS(avail_balance)
+  FROM account;
+
+SIGN retorna -1, 0 ou 1, dependendo se o número é negativo, zero ou pos.
+
+ABS retorna o valor absoluto (módulo).
+
+* Geração, Conversão e Manipulação de Dados (Temporais)
+** Configuração
+SELECT utc_timestamp();   
+
+No SQL server é getutcdate();
+
+
+O MySQL tem duas configurações de zonas horárias diferentes: uma global
+e outra de sessão, que pode ser diferente para cada usuário logado.
+Para ver ambas:
+
+SELECT @@global.time_zone, @@session.time_zone;
+
+O valor system significa que está utilizando o horário do computador
+servidor em que o mysql reside.
+
+Se eu estiver em um computador em Zurique e abrir uma sessão em um
+servidor MySQL situado em Nova Iorque, posso querer mudar a configuração
+fo suo horário da sessão por meio do comando:
+
+SET time_zone = 'Europe/Zurich';
+
+Usuários do Oracle DB podem usar:
+ALTER SESSION TIMEZONE = 'Europe/Zurich'
+
+Para verificar quais nomes de zonas temporais estão disponíveis, fazer:
+- Download das timezones em dev.mysql.com/downloads/timezones.html
+- Desativar o servidor MySQL
+- Extrair o ZIP baixado no diretório de instalação do mysql
+- Reiniciar o servidor MySQL
+- SELECT name FROM time_zone_name;
+
+
+
+** Tipos de formatos de data
+
+| Componente | Definição           | Escopo      |
+|------------+---------------------+-------------|
+| AAAA       | Ano                 | 1000 a 9999 |
+| MM         | Mês                 | 01 a 12     |
+| DD         | Dia                 | 01 a 31     |
+| HH         | Hora                | 00 a 23     |
+| HHH        | Hora (transcorrida) | -838 a 838  |
+| MI         | Minuto              | 00 a 59     |
+| SS         | Segundo             | 00 a 59     |
+
+| Tipo      | Formato default     |
+|-----------+---------------------|
+| Date      | AAAA-MM-DD          |
+| Datetime  | AAAA-MM-DD HH:MI:SS |
+| Timestamp | AAAA-MM-DD HH:MI:SS |
+| Time      | HHH:MI:SS           |
+
+
+Para alterar um campo datetime, basta formatar a string:
+
+UPDATE transaction
+   SET txn_date = '2008-09-17 15:30:00'
+ WHERE txn_id = 99999;
+
+** Funções
+
+Podemos usar CAST para formatar da forma esperada, como em:
+
+SELECT CAST('2008-09-17 15:30:00' AS DATETIME);
+
+SELECT CAST('2008-09-17' AS DATE) date_field,
+       CAST('108:17:57' AS TIME) time_field;
+
+MySQL é bem tolerante para formato de datas:
+'2008-09-17 15:30:00'
+'2008/09/17 15:30:00'
+'2008,09,17,15:30:00'
+'20080917153000'
+São todos a mesma coisa.
+
+
+UPDATE individual
+SET birth_date = STR_TO_DATE('September 17, 2008', '%M, %d, %Y')
+WHERE cust_id = 9999;
+
+Componentes do formato de data:
+
+| Componente de formato | Descrição              |
+|-----------------------+------------------------|
+| %M                    | Nome do mês            |
+| %m                    | Número do mês          |
+| %d                    | Número do dia          |
+| %j                    | Dia do ano             |
+| %W                    | Nome do dia da semana  |
+| %Y                    | Ano com quatro digitos |
+| %y                    | Ano com dois digitos   |
+| %H                    | Hora 0-23              |
+| %h                    | Hora 01 a 12           |
+| %i                    | Minutos 00 a 59        |
+| %s                    | Segundos 00 a 59       |
+| %f                    | Microssegundos (000000 |
+|                       | a 999999)              |
+| %p                    | A.M. ou P.M.           |
+
+STR_TO_DATE retorna datetime, date ou time, dependendo do conteúdo 
+informado.
+
+SELECT CURRENT_DATE(), CURRENT_TIME(), CURRENT_TIMESTAMP();
+
+O Oracle Database inclui current_date() e current_timestamp(), já o 
+SQLServer apenas o current_timestamp()
+
+
+SELECT DATE_ADD(CURRENT_DATE(), INTERVAL 5 DAY);
+
+intervalos mais comuns: Second, Minute, Hour, Day, Month, Year,
+Minute_second (MI:SS), Hour_second (HH:MI:SS), Year_month, (YYYY:MM)
+
+UPDATE transaction
+SET txn_date = DATE_ADD(txn_date, INTERVAL '3:27:11' HOUR_SECOND)
+WHERE txn_id = 9999;
+
+
+UPDATE employee
+SET birth_date = DATE_ADD(birth_date, INTERVAL '9-11' YEAR_MONTH)
+WHERE emp_id = 4789;
+
+Usuários do SQL Server fariam da seguinte forma:
+
+UPDATE employee
+   SET birth_date = DATEADD(MONTH, 119, birth_date)
+ WHERE emp_id = 4789;
+
+Já os usuários do Oracle Database fariam:
+UPDATE employee
+   SET birth_date = ADD_MONTHS(birth_date, 119)
+ WHERE emp_id = 4789;
+
+
+
+SELECT LAST_DAY('2008-09-17');
+Sempre retorna um tipo date, boa função para descobrir rápido de fevereiro
+tem 29 dias naquele ano, por exemplo.
+
+
+No MySQL temos convert_tz() no Oracle DB temos new_time().
+
+Para converter o horário atual para utc, por exemplo:
+
+SELECT CURRENT_TIMESTAMP() current_est,
+       CONVERT_TZ(CURRENT_TIMESTAMP(), 'US/Eastern', 'UTC') current_utc;
+
+
+Também é útil em casos onde há horário diferente da sua timezone.
+
+
+
+Funções temporais que retornam strings
+
+SELECT DAYNAME('2008-09-18');
+
+Retorna o nome do dia da semana, contudo, é melhor usar o padrão
+SQL:2003, com a função extract.
+
+
+SELECT EXTRACT(YEAR FROM '2009-09-18 22:19:05');
+
+No SQLServer não temos extract(), mas datepart(), ficaria assim:
+SELECT DEPART(YEAR, GETDATE())
+
+
+Funções temporais que retornam números
+
+Quantos dias entre uma data e outra:
+SELECT DATEDIFF('2009-09-03', '2009-06-24');
+
+Só retorna dias, mesmo que as horas sejam fornecidas.
+SELECT DATEDIFF('2009-09-03 23:59:59', '2009-06-24 00:00:01');
+
+Se inverter as datas, retorna um número negativo, como em:
+SELECT DATEDIFF('2009-06-24', '2009-09-03');
+
+No Oracle database, basta subtrair uma data da outra e temps o valor de dias.
+
+
+Funções de conversão
+
+SELECT CAST('1456328' AS SIGNED INTEGER) str_to_int;
+
+SELECT CAST('999ABC111' AS UNSIGNED INTEGER) str_to_uint;
+
+(A segunda função retorna apenas o 999 e gera um warning)
+show warnings;
+
+Pode-se utilizar para converter date, time ou datetime, mas precisa
+fornecer todos os elementos, do contrário, no musql utilizar str_to_date()
+
+
+Exercícios:
+
+SELECT SUBSTRING('Please find the substring in this string', 17, 25);
+
+SELECT ABS(-25.76823), SIGN(-25.76823);
+
+SELECT MONTH(CURRENT_DATE()), MONTHNAME(CURRENT_DATE());
+* Agrupamentos e Agregações
+** Básico
+SELECT open_emp_id
+  FROM account;
+
+SELECT open_emp_id
+  FROM account
+GROUP BY open_emp_id;
+
+SELECT open_emp_id, COUNT(*) how_many
+  FROM account
+GROUP BY open_emp_id;
+
+SELECT open_emp_id, COUNT(*) how_many
+  FROM account
+ WHERE COUNT(*) > 4
+GROUP BY open_emp_id;
+
+(dá erro, pois não se contou ainda para filtar com o WHERE)
+
+SELECT open_emp_id, COUNT(*) how_many
+  FROM account
+GROUP BY open_emp_id
+HAVING COUNT(*) > 4;
+
+** Funções de agregação
+
+Max(), Min(), Avg(), Sum(), Count()
+
+SELECT MAX(avail_balance) max_balance,
+       MIN(avail_balance) min_balance,
+       AVG(avail_balance) avg_balance,
+       SUM(avail_balance) tot_balance,
+       COUNT(*) num_accounts
+  FROM account
+ WHERE product_cd = 'CHK';
+
+No acima, não precisou de group by porque o grupo é implícito.
+Já se incluirmos um dado junto com as funções de agregação, dá erro:
+
+SELECT product_cd,
+       MAX(avail_balance) max_balance,
+       MIN(avail_balance) min_balance,
+       AVG(avail_balance) avg_balance,
+       SUM(avail_balance) tot_balance,
+       COUNT(*) num_accounts
+  FROM account;
+
+Para arrumar:
+
+
+SELECT product_cd,
+       MAX(avail_balance) max_balance,
+       MIN(avail_balance) min_balance,
+       AVG(avail_balance) avg_balance,
+       SUM(avail_balance) tot_balance,
+       COUNT(*) num_accounts
+  FROM account
+GROUP BY product_cd;
+
+
+
+Contando valores distintos
+
+Partindo de:
+
+SELECT account_id, open_emp_id
+  FROM account
+ORDER BY open_emp_id;
+
+Podemos ver que várias contas foram abertas por quatro funcionários
+diferentes (ID 1, 10, 13 e 16)
+
+SELECT COUNT(open_emp_id)
+  FROM account;
+
+retorna uma contagem só de 24 contas, se quisermos apenas a quantidade
+de funcinários que abriram:
+
+SELECT COUNT(DISTINCT open_emp_id)
+  FROM account;
+
+
+Usando expressões
+
+SELECT MAX(pending_balance - avail_balance) max_uncleared
+  FROM account;
+
+
+Como os nulls são tratados
+USE lab;
+
+CREATE TABLE number_tbl (val SMALLINT);
+
+INSERT INTO number_tbl VALUES (1);
+INSERT INTO number_tbl VALUES (3);
+INSERT INTO number_tbl VALUES (5);
+
+
+SELECT COUNT(*) num_rows,
+       COUNT(val) num_vals,
+       SUM(val) total,
+       MAX(val) max_val,
+       MIN(val) min_val,
+       AVG(val) avg_val
+  FROM number_tbl;
+
+tudo bem até aqui, agora vamos inserir o valor null e executar a
+consulta novamente
+
+INSERT INTO number_tbl VALUES(NULL);
+
+Ao executar novamente a consulta podemos ver que não há problemas,
+o null é ignorado. A excessão é no COUNT que no * conta os nulls,
+no COUNT(val) somente os valores.
+
+
+Agrupamento por uma só coluna
+
+
+USE BANK;
+
+SELECT product_cd, SUM(avail_balance) prod_balance
+  FROM account
+GROUP BY product_cd;
+
+Por várias colunas
+
+SELECT product_cd, open_branch_id,
+       SUM(avail_balance) tot_balance
+  FROM account
+GROUP BY product_cd, open_branch_id;
+
+
+Agrupamento por Expressões
+
+SELECT EXTRACT(YEAR FROM start_date) year,
+       COUNT(*) how_many
+  FROM employee
+  GROUP BY EXTRACT(YEAR FROM start_date);
+
+
+Gerando Resumos (rollups)
+
+SELECT product_cd, open_branch_id,
+       SUM(avail_balance) tot_balance
+  FROM account
+  GROUP BY product_cd, open_branch_id WITH ROLLUP;
+
+Agora foram adicionadas 7 linhas com as totalizações.
+A última linha é o total geral.
+
+No Oracle deveria ser GROUP BY ROLLUP(product_cd, open_branch_id). A vantagem
+dessa sintaxe é que se usassemos as colunas a, b, c, mas só quiséssemos
+os resumos de b e c, ficaria assim:  GROUP BU a, ROLLUP(b, c);
+
+
+Somente no Oracle DB, Se no exemplo anterior, quisermos além dos totais 
+por produto, o total por filial:
+
+SELECT product_cd, open_branch_id,
+       SUM(avail_balance) tot_balance
+  FROM account
+  GROUP BY product_cd, open_branch_id WITH CUBE;
+
+
+
+Condições de filtro de grupo:
+
+SELECT product_cd, SUM(avail_balance) prod_balance
+  FROM account
+ WHERE status = 'ACTIVE'
+ GROUP BY product_cd
+ HAVING SUM(avail_balance) >= 10000;
+
+
+SELECT product_cd, SUM(avail_balance) prod_balance
+  FROM account
+ WHERE status = 'ACTIVE'
+ GROUP BY product_cd
+ HAVING MAX(avail_balance) >= 1000
+        AND MAX(avail_balance) <= 10000;
+
+
+
+Exercícios:
+
+SELECT COUNT(*)
+  FROM account;
+
+SELECT cust_id, COUNT(*)
+  FROM account
+  GROUP BY cust_id;
+
+
+SELECT cust_id, COUNT(*)
+  FROM account
+  GROUP BY cust_id
+  HAVING COUNT(*) >= 2;
+
+
+SELECT product_cd, open_branch_id, SUM(avail_balance)
+  FROM account
+  GROUP BY product_cd, open_branch_id WITH ROLLUP
+  HAVING COUNT(*) > 1
+  ORDER BY 3 DESC;
+
+* Subconsultas
+
+SELECT account_id, product_cd, cust_id, avail_balance
+  FROM account
+ WHERE account_id = (SELECT MAX(account_id) FROM account);
+
+SELECT MAX(account_id) FROM account;
+** Não-correlatas
+
+SELECT account_id, product_cd, cust_id, avail_balance
+  FROM account
+ WHERE open_emp_id <> (SELECT e.emp_id
+                       FROM employee e INNER JOIN branch b
+                         ON e.assigned_branch_id = b.branch_id
+                       WHERE e.title = 'Head Teller' AND b.city = 'Woburn');
+
+
+Repare que a subconsulta acima só retorna UM valor, caso houvesse
+mais de uma correspondência, a cláusula WHERE reclamaria, como em:
+
+
+SELECT account_id, product_cd, cust_id, avail_balance
+  FROM account
+ WHERE open_emp_id <> (SELECT e.emp_id
+                       FROM employee e INNER JOIN branch b
+                         ON e.assigned_branch_id = b.branch_id
+                       WHERE e.title = 'Teller' AND b.city = 'Woburn');
+
+ERROR 1242 (21000): Subquery returns more than 1 row
+
+Isso ocorre porque:
+
+SELECT e.emp_id
+  FROM employee e INNER JOIN branch b
+    ON e.assigned_branch_id = b.branch_id
+ WHERE e.title = 'Teller' AND b.city = 'Woburn';
+
+Retorna: 11 e 12.
+
+** Operadores IN e NOT IN
+
+SELECT branch_id, name, city
+  FROM branch
+ WHERE name IN ('Headquarters', 'Quincy Branch');
+
+
+SELECT branch_id, name, city
+  FROM branch
+ WHERE name = 'Headquarters' OR name = 'Quincy Branch';
+
+
+SELECT emp_id, fname, title
+  FROM employee
+ WHERE emp_id IN (SELECT superior_emp_id
+                    FROM employee);
+
+SELECT superior_emp_id
+  FROM employee;
+
+
+SELECT emp_id, fname, lname, title
+  FROM employee
+ WHERE emp_id NOT IN (SELECT superior_emp_id
+                        FROM employee
+                       WHERE superior_emp_id IS NOT NULL);
+
+** Operador ALL
+
+SELECT emp_id, fname, lname, title
+  FROM employee
+ WHERE emp_id <> ALL (SELECT superior_emp_id
+                        FROM employee
+                       WHERE superior_emp_id IS NOT NULL);
+
+not in e <> all  são equivalentes
+
+Encontra todas as contas que tenham um saldo disponível menor do que
+todas as contas de Frank Tucker.
+
+SELECT account_id, cust_id, product_cd, avail_balance
+  FROM account
+ WHERE avail_balance < ALL ( SELECT a.avail_balance
+  FROM account a INNER JOIN individual i
+    ON a.cust_id = i.cust_id
+ WHERE i.fname = 'Frank' AND i.lname = 'Tucker');
+
+** Operador ANY
+
+= ANY é equivalente a IN
+
+SELECT account_id, cust_id, product_cd, avail_balance
+  FROM account
+ WHERE avail_balance > ANY (SELECT a.avail_balance
+  FROM account a INNER JOIN individual i
+    ON a.cust_id = i.cust_id
+ WHERE i.fname = 'Frank' AND i.lname = 'Tucker');
+
+** Subsconsultas de múltiplas colunas
+
+SELECT account_id, product_cd, cust_id
+  FROM account
+ WHERE open_branch_id = ( SELECT branch_id
+  FROM branch
+ WHERE name = 'Woburn Branch')
+   AND open_emp_id IN ( SELECT emp_id
+  FROM employee
+ WHERE title = 'Teller' OR title = 'Head Teller');
+
+
+SELECT account_id, product_cd, cust_id
+  FROM account
+ WHERE (open_branch_id, open_emp_id) IN 
+       (SELECT b.branch_id, e.emp_id
+          FROM branch b INNER JOIN employee e
+            ON b.branch_id = e.assigned_branch_id
+         WHERE b.name = 'Woburn Branch'
+               AND (e.title = 'Teller' OR e.title = 'Head Teller'));
+
+** Subconsultas correlatas
+
+SELECT c.cust_id, c.cust_type_cd, c.city
+  FROM customer c
+ WHERE 2 = (SELECT COUNT(*)
+  FROM account a
+ WHERE a.cust_id = c.cust_id);
+
+
+SELECT c.cust_id, c.cust_type_cd, c.city
+  FROM customer c
+ WHERE (SELECT SUM(a.avail_balance)
+          FROM account a
+         WHERE a.cust_id = c.cust_id) BETWEEN 500 and 10000;
+
+
+
+SELECT CONCAT('ALERT! : Account #', a.account_id,
+              ' Has Incorrect Balance!')
+  FROM account a
+ WHERE (a.avail_balance, a.pending_balance) <>
+       (SELECT SUM(expressão para gerar o saldo disponivel),
+        SUM(expressao para gerar o saldo pendente)
+          FROM transaction t
+        WHERE t.account_id = a.account_id);
+
+** Operador Exists
+Encontra todas as contas em que uma transação foi efetuada em um dia
+independente da quantidade.
+
+SELECT a.account_id, a.product_cd, a.cust_id, a.avail_balance
+  FROM account a
+ WHERE EXISTS (SELECT 1
+                 FROM transaction t
+                WHERE t.account_id = a.account_id
+                  AND t.txn_date = '2008-09-22');
+
+O normal é usar SELECT 1 ou SELECT * quando utilizando o operador EXISTS,
+já que não importa o que se está verificando, se existir, EXSITS é verdadeiro.
+
+
+SELECT a.account_id, a.product_cd, a.cust_id
+  FROM account a
+ WHERE NOT EXISTS (SELECT 1
+  FROM business b
+ WHERE b.cust_id = a.cust_id);
+
+(consulta que procura todos os clientes que não aparecem na tabela business,
+uma maneira indireta de encontrar clientes não corporativos)
+
+** Manipulando dados usando subconsultas correlatas
+
+
+Atualiza cada linha da tabela account (nao tem where), encontrando a data
+da ultima transação feita em cada conta.
+
+UPDATE account a
+SET a.last_activity_date = 
+    (SELECT MAX(t.txn_date)
+       FROM transaction t
+      WHERE t.account_id = a.account_id);
+
+
+Contudo, se uma conta nao possuir uma ultima transacao na tabela, será 
+preenchida com null, para incluir essa condicao e proteger esse caso:
+
+UPDATE account a
+   SET a.last_activity_date = 
+       (SELECT MAX(t.txn_date)
+          FROM transaction t
+         WHERE t.account_id = a.account_id)
+   WHERE EXISTS 
+        (SELECT 1
+           FROM transaction t
+          WHERE t.account_id = a.account_id);
+
+
+Também podemos deletar:
+
+DELETE FROM department
+ WHERE NOT EXISTS (SELECT 1
+                     FROM employee
+                    WHERE employee.dept_id = department.dept_id);
+
+
+No MySQL tem que ser feito sem aliases, como acima, mas a maioria dos 
+outros servidores aceita:
+
+DELETE FROM department d
+ WHERE NOT EXISTS (SELECT 1 
+   FROM employee e
+  WHERE e.dept_id = d.dept_id);
+
+** Subconsultas como fonte de dados
+SELECT d.dept_id, d.name, e_cnt.how_many num_employees
+  FROM department d INNER JOIN
+   (SELECT dept_id, COUNT(*) how_many
+    FROM employee
+    GROUP BY dept_id) e_cnt
+    ON d.dept_id = e_cnt.dept_id;
+  
+** Fabricação de dados
+
+SELECT 'Small Fry' name, 0 low_limit, 4999.99 high_limit
+UNION ALL
+SELECT 'Average Joes' name, 5000 low_limit, 9999.99 high_limit
+UNION ALL
+SELECT 'Heavy Hitters' name, 10000 low_limit, 9999999.99 high_limit;
+
++---------------+-----------+------------+
+| name          | low_limit | high_limit |
++---------------+-----------+------------+
+| Small Fry     |         0 |    4999.99 |
+| Average Joes  |      5000 |    9999.99 |
+| Heavy Hitters |     10000 | 9999999.99 |
++---------------+-----------+------------+
+3 rows in set (0,00 sec)
+
+
+Agora que temos esses dados podemos utilizar essas informações para gerar
+uma outra consulta.
+
+SELECT groups.name, COUNT(*) num_customers
+  FROM 
+(SELECT SUM(a.avail_balance) cust_balance
+   FROM account a INNER JOIN product p
+     ON a.product_cd = p.product_cd
+  WHERE p.product_type_cd = 'ACCOUNT'
+GROUP BY a.cust_id) cust_rollup
+  INNER JOIN
+(SELECT 'Small Fry' name, 0 low_limit, 4999.99 high_limit
+UNION ALL
+SELECT 'Average Joes' name, 5000 low_limit, 9999.99 high_limit
+UNION ALL
+SELECT 'Heavy Hitters' name, 10000 low_limit, 9999999.99 high_limit) groups
+  ON cust_rollup.cust_balance
+     BETWEEN groups.low_limit AND groups.high_limit
+GROUP BY groups.name;
+
+** Subconsultas orientadas a tarefas
+
+Normal para geração de dados de relatórios:
+
+SELECT p.name product, b.name branch,
+ CONCAT(e.fname, ' ', e.lname) name,
+ SUM(a.avail_balance) tot_deposits
+FROM account a INNER JOIN employee e
+  ON a.open_emp_id = e.emp_id
+  INNER JOIN branch b
+  ON a.open_branch_id = b.branch_id
+  INNER JOIN product p
+  ON a.product_cd = p.product_cd
+WHERE p.product_type_cd = 'ACCOUNT'
+GROUP BY p.name, b.name, e.fname, e.lname
+ORDER BY 1,2;
+
+
+Se observarmos, a tabela account tem tudo o que precisamos,
+product, branch e employee só são necessárias para exibição de nomes
+no lugar dos números, sem essas tabelas nossa consulta ficaria assim:
+
+SELECT product_cd, open_branch_id branch_id, open_emp_id emp_id,
+  SUM(avail_balance) tot_deposits
+ FROM account 
+GROUP BY product_cd, open_branch_id, open_emp_id
+
+Acima é o coração da consulta, as outras tabelas sao utilizadas apenas
+para se obter strings significativas no lugar das colunas de chaves
+estrangeiras (product_cd, open_branch_id e open_emp_id). A próxima
+consulta junta a anterior em 3 outras tabelas:
+
+SELECT p.name product, b.name branch, CONCAT(e.fname, ' ', e.lname) name,
+       account_groups.tot_deposits
+  FROM (SELECT product_cd, open_branch_id branch_id, 
+               open_emp_id emp_id, SUM(avail_balance) tot_deposits
+          FROM account
+        GROUP BY product_cd, open_branch_id, open_emp_id) account_groups
+  INNER JOIN employee e ON e.emp_id = account_groups.emp_id
+  INNER JOIN branch b ON b.branch_id = account_groups.branch_id
+  INNER JOIN product p ON p.product_cd = account_groups.product_cd
+  WHERE p.product_type_cd = 'ACCOUNT'
+ORDER BY 1,2;
+
+
+A consulta acima fica mais fácil aos olhos e também executa um pouco mais
+rápido que sua antecessora, já que o agrupamento é feito por números pequenos
+de chaves e não por textos.
+
+** Subconsultas em condicoes de filtro
+
+Para encontrar o funcionário que abriu a maior quantidade de contas:
+
+SELECT open_emp_id, COUNT(*) how_many
+  FROM account
+GROUP BY open_emp_id
+HAVING COUNT(*) = (SELECT MAX(emp_cnt.how_many)
+                     FROM (SELECT COUNT(*) how_many
+                             FROM account
+                           GROUP BY open_emp_id) emp_cnt);
+
+A subconsulta having encontra o número máximo de contas abertas
+por um funcionário e a consulta contrainer encontra o funcionario que
+abriu aquele numero de contas. Se vários empatarem, a consulta retorna
+múltiplas linhas.
+
+** Subconsultas como geradoras de expressões
+
+Fazendo o mesmo que aquela grande consulta, mas diferente:
+
+
+SELECT all_prods.product, all_prods.branch,
+  all_prods.name, all_prods.tot_deposits
+ FROM 
+  (SELECT
+    (SELECT p.name FROM product p
+      WHERE p.product_cd = a.product_cd
+        AND p.product_type_cd = 'ACCOUNT') product,
+    (SELECT b.name FROM branch b
+      WHERE b.branch_id = a.open_branch_id) branch,
+    (SELECT CONCAT(e.fname, ' ', e.lname) FROM employee e
+      WHERE e.emp_id = a.open_emp_id) name,
+    SUM(a.avail_balance) tot_deposits
+    FROM account a
+   GROUP BY a.product_cd, a.open_branch_id, a.open_emp_id) all_prods
+  WHERE all_prods.product IS NOT NULL
+ORDER BY 1,2;
+
+
+A consulta a seguir recupera os dados dos funcionários, ordenados por 
+sobrenome do chefe e cada funcionário e em seguida pelo nome do funcionário.
+
+SELECT emp.emp_id, CONCAT(emp.fname, ' ', emp.lname) emp_name,
+  (SELECT CONCAT(boss.fname, ' ', boss.lname)
+     FROM employee boss
+    WHERE boss.emp_id = emp.superior_emp_id) boss_name
+  FROM employee emp
+ WHERE emp.superior_emp_id IS NOT NULL
+ORDER BY (SELECT boss.lname FROM employee boss
+           WHERE boss.emp_id = emp.superior_emp_id), emp.lname;
+
+
+Se por exemplo forem dados os dados:
+nome do produto "savings account"
+id federal do cliente "555-55-5555"
+Nome da filial abert "Quincy Branch"
+e nome e sobrenome do caixa "Frank Portman"
+
+Se quisermos incluir os valores com o insert, deveríamos consultar 4 tabelas
+diferentes para encontrarmos os valores.
+
+Fica talvez mais fácil fazer uma instrução só de SQL assim:
+
+INSERT INTO account
+ (account_id, product_cd, cust_id, open_date, last_activity_date,
+  status, open_branch_id, open_emp_id, avail_balance, pending_balance)
+VALUES (NULL,
+  (SELECT product_cd FROM product WHERE name= 'savings account'),
+  (SELECT cust_id FROM customer WHERE fed_id= '555-55-5555'),
+  '2008-09-25', '2008-09-25', 'ACTIVE',
+  (SELECT branch_id FROM branch WHERE name = 'Quincy Branch'),
+  (SELECT emp_id FROM employee WHERE lname = 'Portman' AND fname = 'Frank'),
+  0, 0);
+
+Muito bom!
+O único problema é que a INSERT ainda será bem sucedida, mesmo que as
+demais não sejam, assim se errar ao entrar com o nome, pode ficar alguma
+coisa com o null.
+
+
+
+
+
+
+
+
+
+** Exercícios
+
+SELECT account_id, product_cd, cust_id, avail_balance
+  FROM account
+ WHERE product_cd IN (SELECT product_cd
+                        FROM product
+                       WHERE product_type_cd = 'LOAN');
+* Junções Revisitadas
+
+SELECT account_id, cust_id
+  FROM account;
+
+
+SELECT cust_id
+  FROM customer;
+
+SELECT a.account_id, c.cust_id
+  FROM account a INNER JOIN customer c
+    ON a.cust_id = c.cust_id;
+
+SELECT a.account_id, b.cust_id, b.name
+  FROM account a INNER JOIN business b
+    ON a.cust_id = b.cust_id;
+
+
+SELECT a.account_id, a.cust_id, b.name
+  FROM account a LEFT OUTER JOIN business b
+    ON a.cust_id = b.cust_id;
+
+SELECT a.account_id, a.cust_id, i.fname, i.lname
+  FROM account a LEFT OUTER JOIN individual i
+    ON a.cust_id = i.cust_id;
+
+
+SELECT c.cust_id, b.name
+  FROM customer c LEFT OUTER JOIN business b
+    ON c.cust_id = b.cust_id;
+
+
+SELECT c.cust_id, b.name
+  FROM customer c RIGHT OUTER JOIN business b
+    ON c.cust_id = b.cust_id;
+
+
+SELECT a.account_id, a.product_cd,
+       CONCAT (i.fname, ' ', i.lname) person_name,
+       b.name business_name
+  FROM account a 
+    LEFT OUTER JOIN individual i
+    ON a.cust_id = i.cust_id
+    LEFT OUTER JOIN business b
+    ON a.cust_id = b.cust_id;
+
+
+Se não for MySQL para mais de duas junções, pode-se utilizar uma
+subconsulta para juntar tudo
+
+SELECT account_ind.account_id, account_ind.product_cd,
+       account_ind.person_name,
+       b.name business_name
+  FROM 
+    (SELECT a.account_id, a.product_cd, a.cust_id,
+            CONCAT(i.fname, ' ', i.lname) person_name
+       FROM account a LEFT OUTER JOIN individual i
+         ON a.cust_id = i.cust_id) account_ind
+     LEFT OUTER JOIN business b
+     ON account_ind.cust_id = b.cust_id;
+
+
+
+Autojunções externas
+
+
+Lista os funcionários e seus supervisores:
+
+SELECT e.fname, e.lname,
+       e_mgr.fname mgr_fname, e_mgr.lname mgr_lname
+  FROM employee e INNER JOIN employee e_mgr
+    ON e.superior_emp_id = e_mgr.emp_id;
+
+
+O problema é que um funcionário que não tem um supervisor fica fora
+da consulta.
+
+No entando, mudando de consulta de junção interna para externa:
+
+SELECT e.fname, e.lname, 
+       e_mgr.fname mgr_fname, e_mgr.lname mgr_lname
+  FROM employee e LEFT OUTER JOIN employee e_mgr
+    ON e.superior_emp_id = e_mgr.emp_id;
+
+Agora o presidente aparece com o seu mgr NULL.
+
+Cuidado para diferença, se fosse junção direita daria muita merda.
+
+
+Junções cruzadas
+
+SELECT pt.name, p.product_cd, p.name
+  FROM product p CROSS JOIN product_type pt;
+
+
+Para gerar números de 0 até 366, por exemplo.
+
+SELECT ones.num + tens.num + hundreds.num
+  FROM
+  (SELECT 1 num UNION ALL
+   SELECT 2 num UNION ALL
+   SELECT 3 num UNION ALL
+   SELECT 4 num UNION ALL
+   SELECT 5 num UNION ALL
+   SELECT 6 num UNION ALL
+   SELECT 7 num UNION ALL
+   SELECT 8 num UNION ALL
+   SELECT 9 num) ones
+  CROSS JOIN
+  (SELECT 0 num UNION ALL
+   SELECT 10 num UNION ALL
+   SELECT 20 num UNION ALL
+   SELECT 30 num UNION ALL
+   SELECT 40 num UNION ALL
+   SELECT 50 num UNION ALL
+   SELECT 60 num UNION ALL
+   SELECT 70 num UNION ALL
+   SELECT 80 num UNION ALL
+   SELECT 90 num) tens
+  CROSS JOIN
+  (SELECT 0 num UNION ALL
+   SELECT 100 num UNION ALL
+   SELECT 200 num UNION ALL
+   SELECT 300 num) hundreds;
+
+Isso ocorre pois fizemos o produto cartesiano dos conjuntos:
+{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }
+{ 0, 10, 20, 30, 40, 50, 60, 70, 80, 90 } 
+{ 100, 200, 300 }
+
+O próximo passo é converter a sequencia para um conjunto de datas:
+
+SELECT DATE_ADD('2020-01-01',
+       INTERVAL (ones.num + tens.num + hundreds.num) DAY) dt
+  FROM
+  (SELECT 1 num UNION ALL
+   SELECT 2 num UNION ALL
+   SELECT 3 num UNION ALL
+   SELECT 4 num UNION ALL
+   SELECT 5 num UNION ALL
+   SELECT 6 num UNION ALL
+   SELECT 7 num UNION ALL
+   SELECT 8 num UNION ALL
+   SELECT 9 num) ones
+  CROSS JOIN
+  (SELECT 0 num UNION ALL
+   SELECT 10 num UNION ALL
+   SELECT 20 num UNION ALL
+   SELECT 30 num UNION ALL
+   SELECT 40 num UNION ALL
+   SELECT 50 num UNION ALL
+   SELECT 60 num UNION ALL
+   SELECT 70 num UNION ALL
+   SELECT 80 num UNION ALL
+   SELECT 90 num) tens
+  CROSS JOIN
+  (SELECT 0 num UNION ALL
+   SELECT 100 num UNION ALL
+   SELECT 200 num UNION ALL
+   SELECT 300 num) hundreds
+  WHERE DATE_ADD('2020-01-01',
+    INTERVAL (ones.num + tens.num + hundreds.num) DAY) < '2021-01-01'
+  ORDER BY 1;
+
+
+O legal é que automaticamente 29 de fevereiro é inserido.
+
+Podemos agora gerar uma consulta que pega quantas transações existem 
+em cada dia.
+
+
+SELECT days.dt, COUNT(t.txn_id)
+  FROM transaction t RIGHT OUTER JOIN
+ (SELECT  DATE_ADD('2001-01-01',
+       INTERVAL (ones.num + tens.num + hundreds.num) DAY) dt
+  FROM
+  (SELECT 1 num UNION ALL
+   SELECT 2 num UNION ALL
+   SELECT 3 num UNION ALL
+   SELECT 4 num UNION ALL
+   SELECT 5 num UNION ALL
+   SELECT 6 num UNION ALL
+   SELECT 7 num UNION ALL
+   SELECT 8 num UNION ALL
+   SELECT 9 num) ones
+  CROSS JOIN
+  (SELECT 0 num UNION ALL
+   SELECT 10 num UNION ALL
+   SELECT 20 num UNION ALL
+   SELECT 30 num UNION ALL
+   SELECT 40 num UNION ALL
+   SELECT 50 num UNION ALL
+   SELECT 60 num UNION ALL
+   SELECT 70 num UNION ALL
+   SELECT 80 num UNION ALL
+   SELECT 90 num) tens
+  CROSS JOIN
+  (SELECT 0 num UNION ALL
+   SELECT 100 num UNION ALL
+   SELECT 200 num UNION ALL
+   SELECT 300 num) hundreds
+  WHERE DATE_ADD('2001-01-01',
+    INTERVAL (ones.num + tens.num + hundreds.num) DAY) < '2002-01-01') days
+   ON days.dt = t.txn_date
+  GROUP BY days.dt
+  ORDER BY 1;
+
+
+
+Junção Natural:
+
+SELECT a.account_id, a.cust_id, c.cust_type_cd, c.fed_id
+  FROM account a NATURAL JOIN customer c;
+
+o servidor sozinho seleciona a.cust_id = c.cust_id
+
+Mas e se as colunas nao tiverem o mesmo nome nas tabelas?
+
+SELECT a.account_id, a.cust_id, a.open_branch_id, b.name
+  FROM account a NATURAL JOIN branch b;
+
+nesse caso o servidor retorna 96 linhas no lugar e 24. Isso acontece
+porque o servidor acaba fazendo o produto carteziano. Não vale a pena
+no final das contas ficar utilizando a junção natural.
+
+* Lógica condicional
+
+
+No exemplo
+
+SELECT c.cust_id, c.fed_id, c.cust_type_cd, 
+  CONCAT (i.fname, ' ', i.lname) indiv_name,
+  b.name business_name
+  FROM customer c LEFT OUTER JOIN individual i
+    ON c.cust_id = i.cust_id
+  LEFT OUTER JOIN business b
+    ON c.cust_id = b.cust_id;
+
+que retorna:
++---------+-------------+--------------+-----------------+------------------------+
+| cust_id | fed_id      | cust_type_cd | indiv_name      | business_name          |
++---------+-------------+--------------+-----------------+------------------------+
+|       1 | 111-11-1111 | I            | James Hadley    | NULL                   |
+|       2 | 222-22-2222 | I            | Susan Tingley   | NULL                   |
+|       3 | 333-33-3333 | I            | Frank Tucker    | NULL                   |
+|       4 | 444-44-4444 | I            | John Hayward    | NULL                   |
+|       5 | 555-55-5555 | I            | Charles Frasier | NULL                   |
+|       6 | 666-66-6666 | I            | John Spencer    | NULL                   |
+|       7 | 777-77-7777 | I            | Margaret Young  | NULL                   |
+|       8 | 888-88-8888 | I            | Louis Blake     | NULL                   |
+|       9 | 999-99-9999 | I            | Richard Farley  | NULL                   |
+|      10 | 04-1111111  | B            | NULL            | Chilton Engineering    |
+|      11 | 04-2222222  | B            | NULL            | Northeast Cooling Inc. |
+|      12 | 04-3333333  | B            | NULL            | Superior Auto Body     |
+|      13 | 04-4444444  | B            | NULL            | AAA Insurance Inc.     |
++---------+-------------+--------------+-----------------+------------------------+
+
+Se quisermos, podemos fazer assim:
+
+
+SELECT c.cust_id, c.fed_id,
+       CASE
+        WHEN c.cust_type_cd = 'I'
+          THEN CONCAT(i.fname, ' ', i.lname)
+        WHEN c.cust_type_cd = 'B'
+          THEN b.name
+        ELSE 'Unknown'
+       END name
+  FROM customer c LEFT OUTER JOIN individual i
+    ON c.cust_id = i.cust_id
+    LEFT OUTER JOIN business b
+    ON c.cust_id = b.cust_id;
+
+que resulta em:
+
++---------+-------------+------------------------+
+| cust_id | fed_id      | name                   |
++---------+-------------+------------------------+
+|       1 | 111-11-1111 | James Hadley           |
+|       2 | 222-22-2222 | Susan Tingley          |
+|       3 | 333-33-3333 | Frank Tucker           |
+|       4 | 444-44-4444 | John Hayward           |
+|       5 | 555-55-5555 | Charles Frasier        |
+|       6 | 666-66-6666 | John Spencer           |
+|       7 | 777-77-7777 | Margaret Young         |
+|       8 | 888-88-8888 | Louis Blake            |
+|       9 | 999-99-9999 | Richard Farley         |
+|      10 | 04-1111111  | Chilton Engineering    |
+|      11 | 04-2222222  | Northeast Cooling Inc. |
+|      12 | 04-3333333  | Superior Auto Body     |
+|      13 | 04-4444444  | AAA Insurance Inc.     |
++---------+-------------+------------------------+
+
+SELECT CONCAT(employee.fname,  ' ', employee.lname) name,
+
+CASE
+  WHEN employee.title = 'Head Teller' 
+    THEN 'Head Teller'
+  WHEN employee.title = 'Teller'
+    AND YEAR(employee.start_date) > 2007
+    THEN 'Teller Trainee'
+  WHEN employee.title = 'Teller'
+    AND YEAR(employee.start_date) < 2006
+    THEN 'Experienced Teller'
+  WHEN employee.title = 'Teller'
+    THEN 'Teller'
+  ELSE 'Non-Teller'
+END emp_title
+
+FROM employee;
+
+
+SELECT c.cust_id, c.fed_id,
+  CASE
+    WHEN c.cust_type_cd = 'I'
+      THEN (SELECT CONCAT(i.fname, ' ', i.lname)
+              FROM individual i
+             WHERE i.cust_id = c.cust_id)
+    WHEN c.cust_type_cd = 'B'
+      THEN (SELECT b.name
+              FROM business b
+             WHERE b.cust_id = c.cust_id)
+    ELSE 'Unknown'
+  END name
+  FROM customer c;
+
+
+
+
+CASE customer.cust_type_cd
+  WHEN 'I' THEN
+    (SELECT CONCAT(i.fname, ' ', i.lname)
+       FROM individual I
+      WHERE i.cust_id = customer.cust_id)
+  WHEN 'B' THEN 
+    (SELECT b.name,
+       FROM business b
+      WHERE b.cust_id = customer.cust_id)
+  ELSE 'Unknow Customer Type'
+END
+
+
+SELECT YEAR(open_date) year, COUNT(*) how_many
+  FROM account
+ WHERE open_date > '1999-12-31'
+   AND open_date > '2006-01-01'
+ GROUP BY YEAR(open_date);
+
+
+SELECT
+  SUM(CASE
+    WHEN EXTRACT(YEAR FROM open_date) = 2000 THEN 1
+    ELSE 0
+    END) year_2000,
+  SUM(CASE
+    WHEN EXTRACT(YEAR FROM open_date) = 2001 THEN 1
+    ELSE 0
+    END) year_2001,
+  SUM(CASE
+    WHEN EXTRACT(YEAR FROM open_date) = 2002 THEN 1
+    ELSE 0
+    END) year_2002,
+  SUM(CASE
+    WHEN EXTRACT(YEAR FROM open_date) = 2003 THEN 1
+    ELSE 0
+    END) year_2003,
+  SUM(CASE
+    WHEN EXTRACT(YEAR FROM open_date) = 2004 THEN 1
+    ELSE 0
+    END) year_2004,
+  SUM(CASE
+    WHEN EXTRACT(YEAR FROM open_date) = 2005 THEN 1
+    ELSE 0
+    END) year_2005
+   FROM account
+  WHERE open_date > '199-12-31' AND open_date < '2006-01-01';
+
+
+(é só um exemplo, a cláusula PIVOT é melhor para essa função)
+
+
+
+SELECT c.cust_id, c.fed_id, c.cust_type_cd,
+  CASE 
+    WHEN EXISTS (SELECT 1 FROM account a
+                  WHERE a.cust_id = c.cust_id
+                    AND a.product_cd = 'CHK') THEN 'Y'
+    ELSE 'N'
+  END has_checking,
+  CASE
+    WHEN EXISTS (SELECT 1 FROM account a
+                  WHERE a.cust_id = c.cust_id
+                    AND a.product_cd = 'SAV') THEN 'Y'
+    ELSE 'N'
+  END has_savings
+ FROM customer c;
+
+
+
+SELECT emp_id, fname, lname,
+  CASE
+    WHEN title IS NULL THEN 'Unknown'
+    ELSE title
+  END
+FROM employee;
+
+
+SELECT (7 * 5) / ((3 + 14) * null);
+
+* Transações
+
+Bloqueio:
+- Microsoft SQL: trava write e read
+- Oracle DB: trava write
+- MySQL: os dois, configurável
+
+Granularidade dos bloqueios:
+- Bloqueios de tabela (table locks)
+- Bloqueios de página (seguimento de memória entre 2 e 16kB) da uma tabela
+- Bloqueios de linha (row locks)
+
+Microsoft SQL: página, linha e tabela
+Oracle       : linha
+MySQL        : página, linha e tabela, dependendo do mec. de armazen.
+
+
+Todas ou nenhuma função é executada (atomicidade).
+
+Exemplo:
+Se ao tentar sacar 500 da poupança para a conta corrente, a primeira
+operação funcionar, mas a segunda falhar, teremos problemas.
+
+Se tudo ocorrer bem, commit (cometida), se não rool back (retrocedida)
+
+Se o servidor for desligado no momento do commit, retoma a transação quando
+reiniciado (durabilidade).
+
+O padrão SQL:2003 incluir um comando strar transaction.
+No SQL server usam begin transaction. Ambos podem ter auto-commit.
+
+No SQL server, para desativar o modo de autocomissão:
+SET IMPLICIT_TRANSACTIONS ON
+
+No MySQL:
+SET AUTOMMIT=0
+
+Uma vez que saiu desse modo, todos os comandos SQL deverão ser realizados
+dentro do escopo de uma transação e devem ter um commit realizado ou devem
+ser desfeitos explicitamente.
+
+DICA: Sempre logue e desligue o modo de autocomissão.
+
+
+Depois de acabar, utiliza-se o commit ou rollback.
+
+Vc commita quando: se usa mudança do esquema da tabela com alter table,
+quando se dá outro start transaction (comitando o anterior).
+
+Vc retrocede quando: o servidor é desligado, o servidor termina sua
+transação de forma prematura porque identeificou um deadlock e
+decidiu que sua transação é a responsável por isso.
+
+
+É possível utilizar alguns pontos de gravação no meio da transação 
+(save points) e retroceder até eles.
+
+Os mecanismos do MySQL:
+MyISAM  bloqueia tabelas (nao-transacional)
+MEMORY  tabelas em memória volátil (nao-transacional)
+BDB     bloqueio de página (transacional)
+InnoDB  transacional emprega bloqueio de linha 
+Merge   particionamento de tabela (várias MyISAM em uma)
+Maria   substituto do MyISAM que adiciona recuperação completa
+Falcon  Novo de alto desempenho que bloqueia linha
+Archive especial para armazernar grandes quantidades não indexadas
+
+No MySQL pode-se escolher o mecanismo por tabela, mas se for fazer
+parte de transações tem de ser innodb ou falcon.
+
+SHOW TABLE STATUS LIKE 'transaction' \G
+
+
+mysql> SHOW TABLE STATUS LIKE 'transaction' \G
+#*************************** 1. row ***************************
+           Name: transaction
+         Engine: InnoDB
+        Version: 10
+     Row_format: Dynamic
+           Rows: 21
+ Avg_row_length: 780
+    Data_length: 16384
+Max_data_length: 0
+   Index_length: 49152
+      Data_free: 0
+ Auto_increment: 22
+    Create_time: 2020-12-22 23:58:24
+    Update_time: NULL
+     Check_time: NULL
+      Collation: utf8mb4_0900_ai_ci
+       Checksum: NULL
+ Create_options:
+        Comment:
+1 row in set (0,00 sec)
+
+
+Note que já está com o INNODB, mas se quisesse mudar para ele:
+
+ALTER TABLE transaction ENGINE = INNODB;
+
+
+Os pontos de gravação devem ser nomeados, utiliza-se:
+
+SAVEPOINT my_savepoint;
+
+ROLLBACK TO SAVEPOINT my_savepoint;
+
+
+
+
+
+START TRANSACTION;
+
+UPDATE product
+   SET date_retired = CURRENT_TIMESTAMP()
+WHERE product_cd = 'XYZ'; 
+
+SAVE POINT before_close_accounts;
+
+UPDATE account
+   SET status = 'CLOSED', close_date = CURRENT_TIMESTAMP(),
+    last_activity_date = CURRENT_TIMESTAMP()
+ WHERE product_cd = 'XYZ';
+
+ROLLBACK TO SAVEPOINT before_close_accounts;
+
+COMMIT;
+
+
+No acima o produto XYZ é aposentado, mas nenhuma das contas é fechada.
+
+No SQL Server precisa utilizar o comando próprio: 
+save transaction
+e
+rollback transaction
+
+* Índices e restrições
+** Utilização
+Pode-se criar índices para o processador acelerar algumas consultas.
+
+No mysql se atlera a tabela, no Oracle e SQL Server deve-se utilizar
+um esquema independente com:
+
+CREATE INDEX dept_name_idx
+    ON department (name);
+
+No mysql >5 pode-se utilizar esse comando, mas ele de verdade executa o
+próprio modo do mysql
+
+
+Voltando ao Mysql:
+
+ALTER TABLE department
+  ADD INDEX dept_name_idx (name);
+
+
+SHOW INDEX FROM department \G
+
+A saída mostra dois índices na tabela, o pimário em dept_id e o
+que acabamos de criar (dept_name_idx).
+
+Como geramos a primária? Na geração da tabela:
+
+CREATE TABLE department
+ (dept_id SMALL INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  name VARCHAR(20) NOT NULL,
+  CONSTRAINT pk_department PRIMARY KEY (dept_id);
+
+Quando criamos a tabela demos o nome PRIMARY ao índice.
+
+
+Se um índice não está sendo utilizado, pode ser útil removê-lo com:
+
+ALTER TABLE department
+  DROP INDEX dept_name_idx;
+
+O mysql também suporta o comando DROP INDEX utilizado no oracle e no sqlserv:
+DROP INDEX dept_name_idx; (Oracle)
+DROP INDEX dept_name idx ON department (SQL Server)
+
+
+
+Índices exclusivos
+
+Para se criar índices não repetidos, no mysql:
+ALTER TABLE department
+ ADD UNIQUE dept_name_idx (name);
+
+No Oracle e SQLServer:
+CREATE UNIQUE INDEX dept_name_idx
+    ON department (name);
+
+
+Com essa restrição, temos agora um erro ao tentar adicionar outro
+departamento com o nome de Operations:
+
+INSERT INTO department(dept_id, name)
+     VALUES (999, 'Operations');
+
+ERROR 1062 (23000): Duplicate entry 'Operations' for key 'department.dept_name_idx'
+
+
+
+
+Índice de múltiplas colunas
+
+ALTER TABLE employee
+  ADD INDEX emp_names_idx (lname, fname);
+
+Faz diferença no processamento a coluna que irá se listar primeiro e depois.
+
+** Tipos de índices
+B-Tree
+
+O MySQL, SQL Server e Oracle Database usam B-tree por padrão (árvore
+balanceada).
+
+
+Mapa de Bits
+
+Para colunas que tem PEQUENA quantidade de valores em um número grande de
+linhas (conhecidos como baixa cardinalidade).
+
+Oracle pode gerar mapa de bits usando:
+CREAT BITMAP INDEX acc_prod_idx ON account (product_cd);
+
+
+Índices de Texto
+
+Procurar em cada db mgr.
+
+** Como índices são usados
+
+SELECT emp_id, fname, lname
+  FROM employee
+ WHERE emp_id IN (1, 3, 9, 15);
+
+O servidor pode usar o índice de chave primária emp_id para localizar
+os dados, mas se o índice já tiver tudo o que é necessário, nem visitará
+a tabela.
+
+SELECT cust_id, SUM(avail_balance) tot_bal
+  FROM account
+ WHERE cust_id IN (1, 5, 9, 11)
+ GROUP BY cust_id;
+
+
+Para ver como o otimizador de consultas do MySQL decide executar uma
+consulta, utiliza-se a instrução explain:
+
+EXPLAIN SELECT cust_id, SUM(avail_balance) tot_bal
+  FROM account
+ WHERE cust_id IN (1, 5, 9, 11)
+ GROUP BY cust_id \G
+
+SQL Server usa para explicar: SET SHOPLAN_TEXT ON ...
+Oracle DB: EXPLAIN PLAN que escreve o plano em uma tabela especial
+chamada plan_table.
+
+
+Vamos adicionar um novo índice acc_bal_idx em ambas as colunas cust_id e
+avail_balance:
+
+ALTER TABLE account 
+  ADD INDEX acc_bal_idx (cust_id, avail_balance);
+
+
+EXPLAIN SELECT cust_id, SUM(avail_balance) tot_bal
+   FROM account
+  WHERE cust_id IN (1, 5, 9, 11)
+  GROUP BY cust_id \G
+
+** Restrições
+
+Chave primária: identifica coluna ou colunas que garantem exclusividade
+                dentro da tabela
+
+Chave estrangeira: restringem uma ou mais colunas que contenham apenas
+                   valores encontrados nas colunas de chave primária de 
+                   outra tabela e também podem restringir os valores
+		   permitidos em outras tabelas se regras de atualização
+		   em cascata ou exclusão em cascata forem estabelecidas
+
+Restrições exclusivas: Restrigem uma ou mais colunas para valor exclusivo
+                       dentro da tabela (chaves primárias são um tipo de
+                       restrição exclusiva)
+
+Restrições de verificação: Restringe o valor permitido em uma coluna
+
+
+No MySQL se quiser usar chaves extrangeiras, deve-se utilizar InnoDB
+nas tabelas.
+
+** Criação de restrições
+
+CREATE TABLE product
+  (product_cd VARCHAR(10) NOT NULL,
+   name VARCHAR(50) NOT NULL,
+   product_type_cd VARCHAR(10) NOT NULL,
+   date_oferred DATE,
+   date_retired DATE,
+    CONSTRAINT fk_product_type_cd FOREIGN KEY (product_type_cd)
+      REFERENCES product_type (product_type_cd)
+    CONSTRAINT pk_product PRIMARY KEY (product_cd)
+  );
+
+
+Pode-se criar a extrangeira mais tarde, como em:
+ALTER TABLE product
+ADD CONSTRAINT pk_product PRIMARY KEY (product_cd);
+
+ALTER TABLE product
+ADD CONSTRAINT fk_product_type_cd FOREIGN KEY (product_type_cd)
+REFERENCES product_type (product_type_cd);
+
+
+Para se remover uma restrição de chave primária ou extrangeira, utilizar:
+ALTER TABLE product
+ DROP PRIMARY KEY;
+
+ALTER TABLE product
+ DROP FOREIGN KEY fk_product_type_cd;
+
+** Comportamento de índices e restrições 
+
+| Tipo de Restr | MySQL            | SQL Server      | Oracle Database   |
+|---------------+------------------+-----------------+-------------------|
+| Restr. chave  | índice exclusivo | índ. exclusivo  | índice existente  |
+| primária      |                  |                 | ou gera exclusivo |
+|---------------+------------------+-----------------+-------------------|
+| Rest. chave   | Gera índice      | Não gera índice | Não gera índice   |
+| extrangeira   |                  |                 |                   |
+|---------------+------------------+-----------------+-------------------|
+| Restrições    | Gera índice      | Gera índice     | Usa índice        |
+| exclusivas    | exclusivo        | exclusivo       | existente ou novo |
+
+** Restrições em cascata
+
+SELECT product_type_cd, name
+  FROM product_type;
+
+SELECT product_type_cd, product_cd, name
+  FROM product
+ORDER BY product_type_cd;
+
+
+Se quiser mudar assim dá errado pela restrição no tipo:
+UPDATE product
+   SET product_type_cd = 'XYZ'
+ WHERE product_type_cd = 'LOAN';
+
+ERROR 1452 (23000): Cannot add or update a child row: a foreign key
+            constraint fails (`bank`.`product`, CONSTRAINT
+            `fk_product_type_cd` FOREIGN KEY (`product_type_cd`)
+            REFERENCES `product_type` (`product_type_cd`))
+
+Se tentar na tabela mãe:
+UPDATE product_type
+   SET product_type_cd = 'XYZ'
+ WHERE product_type_cd = 'LOAN';
+
+ERROR 1451 (23000): Cannot delete or update a parent row: a foreign
+key constraint fails (`bank`.`product`, CONSTRAINT
+`fk_product_type_cd` FOREIGN KEY (`product_type_cd`) REFERENCES
+`product_type` (`product_type_cd`))
+
+
+Esse é o comportamento padrão, não se muda a mãe se houver filhas.
+Mas não precisa ser assim, é possível atualização em cascata:
+
+ALTER TABLE product
+DROP FOREIGN KEY fk_product_type_cd;
+
+ALTER TABLE product
+ADD CONSTRAINT fk_product_type_cd FOREIGN KEY (product_type_cd)
+    REFERENCES product_type (product_type_cd)
+    ON UPDATE CASCADE;
+
+
+Finalmente:
+UPDATE product_type
+   SET product_type_cd = 'XYZ'
+ WHERE product_type_cd = 'LOAN';
+
+Query OK, 1 row affected (0,01 sec)
+Rows matched: 1  Changed: 1  Warnings: 0
+
+
+Para verificar se tudo ocorreu conforme esperado, verificamos os
+dados em ambas as tabelas novamente.
+
+SELECT product_type_cd, name
+  FROM product_type;
+
+SELECT product_type_cd, product_cd, name
+  FROM product
+ORDER BY product_type_cd;
+
+
+Já se alteramos dessa forma:
+ALTER TABLE product
+ADD CONSTRAINT fk_product_type_cd FOREIGN KEY (product_type_cd)
+    REFERENCES product_type (product_type_cd)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE;
+
+Além de atualizar, também deleta as entradas se o product_type for
+excluído.
+
+* Views
+
+CREATE VIEW customer_vw
+  (cust_id,
+   fed_id,
+   cust_type_cd,
+   address,
+   city,
+   state,
+   zipcode
+  )
+  AS
+  SELECT cust_id,
+         concat('ends in ', substr(fed_id, 8, 4)) fed_id,
+         cust_type_cd,
+	 address,
+	 city,
+	 state,
+	 postal_code
+    FROM customer;
+
+
+SELECT cust_id, fed_id, cust_type_cd
+  FROM customer_vw;
+
+
+Parece muito uma tabela, para saber quais colunas estão disponíveis:
+
+
+SELECT cust_type_cd, count(*)
+  FROM customer_vw
+ WHERE state = 'MA'
+GROUP BY cust_type_cd
+ORDER BY 1;
+
+
+SELECT cst.cust_id, cst.fed_id, bus.name
+  FROM customer_vw cst INNER JOIN business bus
+    ON cst.cust_id = bus.cust_id;
+
+
+
+Para que somente clientes corporativos sejam consultados:
+
+CREATE VIEW business_customer_vw
+  (cust_id,
+   fed_id,
+   cust_type_cd,
+   address,
+   city,
+   state,
+   zipcode
+  )
+  AS
+  SELECT cust_id,
+    concat('ends in ', substr(fed_id, 8, 4)) fed_id,
+    cust_type_cd,
+    address,
+    city,
+    state,
+    postal_code
+  FROM customer
+  WHERE cust_type_cd = 'B';
+
+
+no Oracle database pode-se fazer o Virtual Private Database (VPD), que 
+permite anexar políticas a suas tabelas, inserindo automaticamente, por
+exemplo o cust_type_cd = 'B' nas consultas de certos usuários.
+
+
+Aplicações de relatórios geralmente requererm dados agregados, as views
+são uma ótima maneira de se fazer:
+
+CREATE VIEW customer_totals_vw
+  (cust_id,
+   cust_type_cd,
+   cust_name,
+   num_accounts,
+   tot_deposits
+  )
+  AS
+  SELECT cst.cust_id, cst.cust_type_cd,
+    CASE
+     WHEN cst.cust_type_cd = 'B' THEN
+       (SELECT bus.name FROM business bus WHERE bus.cust_id = cst.cust_id)
+     ELSE
+       (SELECT concat(ind.fname, ' ', ind.lname)
+          FROM individual ind
+	 WHERE ind.cust_id = cst.cust_id)
+     END cust_name,
+         sum(CASE WHEN act.status = 'ACTIVE' THEN 1 ELSE 0 END) tot_active_accounts,
+	 sum(CASE WHEN act.status = 'ACTIVE' THEN act.avail_balance ELSE 0 END) tot_balance
+    FROM customer cst INNER JOIN account act
+      ON act.cust_id = cst.cust_id   
+  GROUP BY cst.cust_id, cst.cust_type_cd;
+
+
+Se em algum momento você decidir que gostaria de uma tabela com os dados
+de uma view, bastaria fazer:
+
+CREATE TABLE customer_totals
+ AS
+ SELECT * FROM customer_totals_vw;
+
+Já puxa tudo, incluindo o schema.
+
+Mas e os usuários que ainda usavam a view?
+Vamos fazer a view puxar os dados agora da nova tabela
+
+CREATE OR REPLACE VIEW customer_totals_vw
+  (cust_id,
+   cust_type_cd,
+   cust_name,
+   num_accounts,
+   tot_deposits
+  )
+  AS 
+  SELECT cust_id, cust_type_cd, cust_name, num_accounts, tot_deposits
+    FROM customer_totals;
+
+
+Escondendo a complexidade
+
+CREATE VIEW branch_activity_vw
+  (branch_name,
+   city,
+   state,
+   num_employees,
+   num_active_accounts,
+   tot_transactions
+   )
+   AS
+   SELECT br.name, br.city, br.state,
+     (SELECT count(*)
+        FROM employee emp
+       WHERE emp.assigned_branch_id = br.branch_id) num_emps,
+     (SELECT count(*)
+        FROM account acnt
+       WHERE acnt.status = 'ACTIVE' AND acnt.open_branch_id = br.branch_id) num_accounts,
+     (SELECT count(*)
+        FROM transaction txn
+       WHERE txn.execution_branch_id = br.branch_id) num_txns
+     FROM branch br;
+
+
+View que une duas tabelas (últimos 6 meses + histórico)
+
+CREATE VIEW transaction_vw
+  (txn_date,
+   account_id,
+   txn_type_cd,
+   amount,
+   teller_emp_id,
+   execution_branch_id,
+   funds_avail_date
+  )
+  AS
+  SELECT txn_date, account_id, txn_type_cd, amount, teller_emp_id,
+         execution_branch_id, funds_avail_date
+    FROM transaction_historic
+  UNION ALL
+  SELECT txn_date, account_id, txn_type_cd, amount, teller_emp_id,
+         execution_branch_id, funds_avail_date
+    FROM transaction_current;
+
+
+
+Views atualizáveis:
+Se a view não tem função de agregação (max, min, avg, etc.)
+Não tem group by ou having
+Não tem subconsultas select ou from
+Não tem union, union all ou distinct
+A cláusula tem pelo menos uma tabela ou view atualizável
+A cláusula só usa junções INTERNAS se houver mais de uma tabela ou view
+
+
+Na view criada anteriormente, customer_vw, vamos tentar:
+
+UPDATE customer_vw
+   SET city = 'Woooburn'
+ WHERE city = 'Woburn';
+
+Conferindo:
+SELECT DISTINCT city FROM customer;
+
+Apesar de ser possível mudar a maioria das colunas, não é possível a coluna
+fed_id, já que é derivada de uma expressão.
+
+UPDATE customer_vw
+   SET city = 'Woburn', fed_id = '9999999999'
+ WHERE city = 'Woooburn';
+ERROR 1348 (HY000): Column 'fed_id' is not updatable
+
+
+
+Atualizando views complexas
+
+Junta todos os dados dos clientes corporativos:
+
+CREATE  OR REPLACE VIEW business_customer_vw
+  (cust_id,
+   fed_id,
+   address,
+   city,
+   state,
+   postal_code,
+   business_name,
+   state_id,
+   incorp_date
+   )
+   AS
+   SELECT cst.cust_id,
+          cst.fed_id,
+	  cst.address,
+	  cst.city,
+	  cst.state,
+	  cst.postal_code,
+	  bsn.name,
+	  bsn.state_id,
+	  bsn.incorp_date
+     FROM customer cst INNER JOIN business bsn
+       ON cst.cust_id = bsn.cust_id
+    WHERE cust_type_cd = 'B';
+
+
+Podemos utilizar essa view para atualizar a tabela customer ou business:
+UPDATE business_customer_vw
+   SET postal_code = '99999'
+ WHERE cust_id = 10;
+
+UPDATE business customer_vw
+   SET incorp_date = '2008-11-17'
+ WHERE cust_id = 10;
+
+
+UPDATE business_customer_vw
+   SET postal_code = '88888', incorp_date = '2008-10-31'
+ WHERE cust_id = 10;
+
+ERROR 1393 (HY000): Can not modify more than one base table through a
+join view 'bank.business_customer_vw'
+
+
+INSERT INTO business_customer_vw
+ (cust_id, fed_id, address, city, state, postal_code)
+ VALUES
+ (99, '04-9999999', '99 Main St.', 'Peabody', 'MA', '01975');
+Query OK, 1 row affected (0,00 sec)
+
+
+INSERT INTO business_customer_vw
+ (cust_id, business_name, state_id, incorp_date)
+ VALUES
+ (99, 'Ninety-Nine Restaurant', '99-999-999', '1999-01-01');
+ERROR 1393 (HY000): Can not modify more than one base table through a
+join view 'bank.business_customer_vw'
+
+
+No PL/SQL e no Transanct-SQL temos instead-of triggers que essencialmente
+permitem interceptar instruções INSERT, UPDATE e DELETE em uma view e 
+escrever um código personalizado para incorporar as mudanças.
+
+* Metadados
+
+information_schema
+
+SELECT index_name, non_unique, seq_in_index, column_name
+  FROM information_schema.statistics
+ WHERE table_schema = 'bank' AND table_name = 'account'
+ORDER BY 1, 3;
+
+Tudo consulta do manager...
