@@ -8,17 +8,24 @@ Elaborado como guia de estudos durante a leitura de `Learning SQL` por
 Alan Beaulieu.
 
 * Criando Banco e Usuário
+#+BEGIN_SRC bash
 mysql -u root -p
+#+END_SRC
 
+#+BEGIN_SRC sql
 create database bank;
+#+END_SRC
 
-
+#+BEGIN_SRC sql
 grant all privileges on bank.* to 'rmj'@'localhost' identified by 'xyz';
+#+END_SRC
+
 (A linha acima não funciona mais... ler em seguida)
 
 (A partir do mysql 8 não se pode criar o usuário implicitamente atribuindo
 para ele os poderes, deve-se primeiro criar o usuário)
 
+#+BEGIN_SRC sql
 CREATE USER 'rmj'@'localhost' IDENTIFIED BY '123';
 
 grant all privileges on bank.* to 'rmj'@'localhost';
@@ -26,32 +33,44 @@ grant all privileges on bank.* to 'rmj'@'localhost';
 FLUSH PRIVILEGES;
 
 quit;
+#+END_SRC
 
 * Conectanco via CLI
+#+BEGIN_SRC bash
 mysql -u rmj -p
 
 use bank;
+#+END_SRC
 
 ou ainda...
 
+#+BEGIN_SRC basn
 mysql -u rmj -p bank
+#+END_SRC
 
 * Importando banco de arquivo
 OBS.: é aqui que se deve importar o .sql de exemplo. Com o bank selecionado:
-Source LearningSQLExample.sql
+
+#+BEGIN_SRC sql
+  source LearningSQLExample.sql
+#+END_SRC
 
 Confira com o SHOW TABLES; DESC ...; etc.
 
-
+#+BEGIN_SRC sql
 SELECT now();
+#+END_SRC
 
 ou para compatibilidade com Oracle:
 
+#+BEGIN_SRC sql
 SELECT now() from dual;
 
 SHOW CHARACTER SET;
+#+END_SRC
 
 * Criando tabela
+#+BEGIN_SRC sql
 mysql> CREATE TABLE person
     -> (person_id SMALLINT UNSIGNED,
     -> fname VARCHAR(20),
@@ -77,68 +96,80 @@ mysql> CREATE TABLE favorite_food
     -> );
 
 DESC favorite_food;
+#+END_SRC
 
+Antes de popular a tabela, ativar o incrementador de chaves.
 
-Antes de popoular a tabela, ativar o incrementador de chaves
+O mysql tem agora um lock para checar se está alterando uma chave
+estrangeira, pra alterar precisa desligar esse check, depois
+religá-lo.
 
-O mysql tem agora um lock para checar se está alterando uma chave estrangeira, pra alterar precisa desligar esse check, depois religá-lo.
-
+#+BEGIN_SRC sql
 SET FOREIGN_KEY_CHECKS = 0;
 ALTER TABLE person MODIFY person_id SMALLINT UNSIGNED AUTO_INCREMENT;
 SET FOREIGN_KEY_CHECKS = 1;
 
+#+END_SRC
 
-mysql> INSERT INTO person
-    -> (person_id, fname, lname, gender, birth_date)
-    -> VALUES (null, 'William', 'Turner', 'M', '1972-05-27');
+Então podemos popular a tabela:
 
-SELECT person_id, fname, lname, birth_date FROM person;
+#+BEGIN_SRC sql
+  mysql> INSERT INTO person
+      -> (person_id, fname, lname, gender, birth_date)
+      -> VALUES (null, 'William', 'Turner', 'M', '1972-05-27');
 
-SELECT person_id, fname, lname, birth_date
-    -> FROM person
-    -> WHERE person_id = 1;
+  SELECT person_id, fname, lname, birth_date FROM person;
 
-SELECT person_id, fname, lname, birth_date
-    -> FROM person
-    -> WHERE lname = 'Turner';
+  SELECT person_id, fname, lname, birth_date
+      -> FROM person
+      -> WHERE person_id = 1;
 
-mysql> INSERT INTO favorite_food
-    -> (person_id, food)
-    -> VALUES
-    -> (1, 'pizza');
-Query OK, 1 row affected (0,01 sec)
+  SELECT person_id, fname, lname, birth_date
+      -> FROM person
+      -> WHERE lname = 'Turner';
 
-mysql> INSERT INTO favorite_food
-    -> (person_id, food)
-    -> VALUES
-    -> (1, 'cookies');
-Query OK, 1 row affected (0,00 sec)
+  mysql> INSERT INTO favorite_food
+      -> (person_id, food)
+      -> VALUES
+      -> (1, 'pizza');
+  Query OK, 1 row affected (0,01 sec)
 
-mysql> INSERT INTO favorite_food
-    -> (person_id, food)
-    -> VALUES
-    -> (1, 'nachos');
-Query OK, 1 row affected (0,01 sec)
+  mysql> INSERT INTO favorite_food
+      -> (person_id, food)
+      -> VALUES
+      -> (1, 'cookies');
+  Query OK, 1 row affected (0,00 sec)
 
-SELECT food
-    -> FROM favorite_food
-    -> WHERE person_id = 1
-    -> ORDER BY food;
+  mysql> INSERT INTO favorite_food
+      -> (person_id, food)
+      -> VALUES
+      -> (1, 'nachos');
+  Query OK, 1 row affected (0,01 sec)
 
-mysql> INSERT INTO person
-    -> (person_id, fname, lname, gender, birth_date, street, city, state, country, postal_code)
-    -> VALUES
-    -> (null, 'Susan', 'Smith', 'F', '1975-11-02', '23 Maple St.', 'Arlington', 'VA', 'USA', '20220');
+  SELECT food
+      -> FROM favorite_food
+      -> WHERE person_id = 1
+      -> ORDER BY food;
 
-SELECT person_id, fname, lname, birth_date
-    -> FROM person;
+  mysql> INSERT INTO person
+      -> (person_id, fname, lname, gender, birth_date, street, city, state, country, postal_code)
+      -> VALUES
+      -> (null, 'Susan', 'Smith', 'F', '1975-11-02', '23 Maple St.', 'Arlington', 'VA', 'USA', '20220');
+
+  SELECT person_id, fname, lname, birth_date
+      -> FROM person;
+#+END_SRC
 
 * Mostrando saída como XML
 SELECT * FROM favorite_food
 
-(se quiser saída em XML, logar com mysql -u rmj -p --xml bank)
+Se quiser saída em XML, logar com
+#+BEGIN_SRC bash
+  mysql -u rmj -p --xml bank
+#+END_SRC
 
 * Realizando Update em Tabela
+#+BEGIN_SRC sql
 mysql> UPDATE person
     -> SET
     -> street = '1225 Tremont St.',
@@ -152,10 +183,11 @@ SELECT * FROM person;
 
 mysql> DELETE FROM person
     -> WHERE person_id = 2;
-
+#+END_SRC
 
 Testando alguns erros:
 
+#+BEGIN_SRC sql
 mysql> INSERT INTO person
     -> (person_id, fname, lname, gender, birth_date)
     -> VALUES
@@ -177,16 +209,19 @@ mysql> UPDATE person
     -> WHERE person_id = 1;
 Query OK, 1 row affected (0,01 sec)
 Rows matched: 1  Changed: 1  Warnings: 0
+#+END_SRC
 
-
+#+BEGIN_SRC sql
 Especificando o formato no lugar de confiar na auto formatação:
 mysql> UPDATE person
     -> SET birth_date = str_to_date('DEC-21-1980', '%b-%d-%Y')
     -> WHERE person_id = 1;
 Query OK, 1 row affected (0,01 sec)
 Rows matched: 1  Changed: 1  Warnings: 0
+#+END_SRC
 
 * Mostrar/Deletar tabelas
+#+BEGIN_SRC sql
 SHOW TABLES;
 
 DROP TABLE favorite_food;
@@ -196,6 +231,7 @@ DROP TABLE person;
 SHOW TABLES;
 
 DESC costumer;
+#+END_SRC
 
 * Realizando consultas
 Consultas (querys) CAP 3
