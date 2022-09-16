@@ -236,6 +236,7 @@ DESC costumer;
 * Realizando consultas
 Consultas (querys) CAP 3
 
+#+BEGIN_SRC sql
 SELECT fname, lname
 FROM employee;
 
@@ -264,69 +265,86 @@ mysql> SELECT VERSION(),
 | 8.0.22    | rmj@localhost | bank       |
 +-----------+---------------+------------+
 1 row in set (0,00 sec)
-
+#+END_SRC
 
 Abaixo mostra como colocar um alias na coluna
 - Sem AS
+#+BEGIN_SRC sql
 mysql> SELECT emp_id,
     -> 'ACTIVE' status,
     -> emp_id * 3.14159 empid_x_pi,
     -> UPPER(lname) last_name_upper
     -> FROM employee;
+#+END_SRC    
 
 - Com AS
+#+BEGIN_SRC sql  
 mysql> SELECT emp_id,
     -> 'ACTIVE' AS status,
     -> emp_id * 3.14159 AS empid_x_pi,
     -> UPPER(lname) AS last_name_upper
     -> FROM employee;
+#+END_SRC
 
 O resultado é o mesmo, AS é uma boa prática, no entanto.
 
-
+#+BEGIN_SRC sql
 mysql> SELECT cust_id
     -> FROM account;
+#+END_SRC    
 
 para eliminar os duplicados acima:
 
+#+BEGIN_SRC sql
 mysql> SELECT DISTINCT cust_id
     -> FROM account;
+#+END_SRC    
 
 OBS: Use somente se tiver certeza que haverão dados
 repetidos. Esse comando também ordena para entrega, o que
-/pode ser bastante custoso com muitas entradas
+pode ser bastante custoso com muitas entradas
 
 * Criando Subconsultas
 
 Subconsultas
 
+#+BEGIN_SRC sql
 mysql> SELECT e.emp_id, e.fname, e.lname
     -> FROM (SELECT emp_id, fname, lname, start_date, title
     ->       FROM employee) e;
+#+END_SRC    
 
 * Criando Views
 
+#+BEGIN_SRC sql
 mysql> CREATE VIEW employee_vw AS
     -> SELECT emp_id, fname, lname,
     ->   YEAR(start_date) start_year
     -> FROM employee;
 
 SELECT * FROM employee_vw;
+#+END_SRC
 
 Subconsulta na VIEW
+
+#+BEGIN_SRC sql
 mysql> SELECT emp_id, start_year
     -> FROM employee_vw;
+#+END_SRC
 
 * Criando vínculos de tabelas JOIN, WHERE...
 
+#+BEGIN_SRC sql
 mysql> SELECT employee.emp_id, employee.fname, employee.lname,
     ->        department.name dept_name
     -> FROM   employee INNER JOIN department
     ->   ON   employee.dept_id = department.dept_id;
+#+END_SRC
 
 
 Definindo aliases de tabela (com e sem AS)
 
+#+BEGIN_SRC sql
 mysql> SELECT e.emp_id, e.fname, e.lname,
     ->        d.name dept_name
     -> FROM employee e INNER JOIN department d
@@ -356,74 +374,85 @@ SELECT emp_id, fname, lname, start_date, title
     -> FROM employee
     -> WHERE (title = 'Head Teller'AND start_date > '2006-01-01')
     ->    OR (title = 'Teller' AND start_date > '2007-01-01');
+#+END_SRC    
 
 * Listar com Group By e Having e usando ORDER BY
 Lista os departamentos com mais de dois funcionários
 
+#+BEGIN_SRC sql
 mysql> SELECT d.name, count(e.emp_id) num_employees
     -> FROM department d INNER JOIN employee e
     ->   ON d.dept_id = e.dept_id
     -> GROUP BY d.name
     -> HAVING count(e.emp_id) > 2;
-
+#+END_SRC
 
 Compara com e sem ordem
 
+#+BEGIN_SRC sql
 mysql> SELECT open_emp_id, product_cd
     -> FROM account;
 
 mysql> SELECT open_emp_id, product_cd
     -> FROM account
     -> ORDER BY open_emp_id;
-
+#+END_SRC
 
 
 Ordenação crescente é padrão:
 
+#+BEGIN_SRC sql
 mysql> SELECT open_emp_id, product_cd
     -> FROM account
     -> ORDER BY open_emp_id, product_cd;
-
+#+END_SRC
 
 Se quiser decrescente:
 
+#+BEGIN_SRC sql
 mysql> SELECT account_id, product_cd, open_date, avail_balance
     -> FROM account
     -> ORDER BY avail_balance DESC;
-
+#+END_SRC
 
 Ord por meio de expressões:
 
+#+BEGIN_SRC sql
 mysql> SELECT cust_id, cust_type_cd, city, state, fed_id
     -> FROM customer
     -> ORDER BY RIGHT(fed_id, 3);
-
+#+END_SRC
 
 Oder by ref. num.
 
+#+BEGIN_SRC sql
 mysql> SELECT emp_id, title, start_date, fname, lname
     -> FROM employee
     -> ORDER BY 2,5;
-
+#+END_SRC
 * Condições de Filtragem
 
 De igualdade:
 
+#+BEGIN_SRC sql
 mysql> SELECT pt.name product_type, p.name product
     -> FROM product p INNER JOIN product_type pt
     ->   ON p.product_type_cd = pt.product_type_cd
     -> WHERE pt.name = 'Customer Accounts';
-
+#+END_SRC
 
 De desigualdade:
 
+#+BEGIN_SRC sql
 mysql> SELECT pt.name product_type, p.name product
     -> FROM product p INNER JOIN product_type pt
     ->   ON p.product_type_cd = pt.product_type_cd
     -> WHERE pt.name <> 'Customer Accounts';
+#+END_SRC
 
 De intervalo:
 
+#+BEGIN_SRC sql
 mysql> SELECT emp_id, fname, lname, start_date
     -> FROM employee
     -> WHERE start_date < '2007-01-01';
@@ -432,9 +461,11 @@ mysql> SELECT emp_id, fname, lname, start_date
     -> FROM employee
     -> WHERE start_date < '2007-01-01'
     ->   AND start_date >= '2002-01-01'
+#+END_SRC
 
 Usando between:
 
+#+BEGIN_SRC sql
 mysql> SELECT emp_id, fname, lname, start_date
     -> FROM employee
     -> WHERE start_date BETWEEN '2002-01-01' AND '2007-01-01';
@@ -447,10 +478,11 @@ mysql> SELECT cust_id, fed_id
     -> FROM customer
     -> WHERE cust_type_cd = 'I'
     ->   AND fed_id BETWEEN '500-00-0000' AND '999-99-9999';
-
+#+END_SRC
 
 Usando IN
 
+#+BEGIN_SRC sql
 mysql> SELECT account_id, product_cd, cust_id, avail_balance
     ->   FROM account
     ->   WHERE product_cd = 'CHK' OR product_cd = 'SAV'
@@ -459,30 +491,36 @@ mysql> SELECT account_id, product_cd, cust_id, avail_balance
 mysql> SELECT account_id, product_cd, cust_id, avail_balance
     ->   FROM account
     ->  WHERE product_cd IN('CHK', 'SAV', 'CD', 'MM');
-
+#+END_SRC
 
 Usando Subconsultas
 
+#+BEGIN_SRC sql
 mysql> SELECT account_id, product_cd, cust_id, avail_balance
     -> FROM account
     -> WHERE product_cd IN (SELECT product_cd FROM product
     ->                      WHERE product_type_cd = 'ACCOUNT');
+#+END_SRC
 
 Usando NOT IN
 
+#+BEGIN_SRC sql
 mysql> SELECT account_id, product_cd, cust_id, avail_balance
     ->   FROM account
     ->  WHERE product_cd NOT IN ('CHK', 'SAV', 'CD', 'MM');
-
+#+END_SRC
 
 Condições de Correspondência
 
+#+BEGIN_SRC sql
 mysql> SELECT emp_id, fname, lname
     ->  FROM employee
     -> WHERE LEFT(lname, 1) = 'T';
+#+END_SRC
 
+Usando Coringas
 
-Usando Curingas
+#+BEGIN_SRC sql
 mysql> SELECT lname
     ->   FROM employee
     ->  WHERE lname LIKE '_a%e%';
@@ -494,17 +532,19 @@ mysql> SELECT cust_id, fed_id
 mysql> SELECT emp_id, fname, lname
     ->   FROM employee
     ->  WHERE lname LIKE 'F%' OR lname LIKE 'G%';
-
+#+END_SRC
 
 Usando REGEXP
 
+#+BEGIN_SRC sql
 mysql> SELECT emp_id, fname, lname
     ->   FROM employee
     ->  WHERE lname REGEXP '^[FG]';
-
+#+END_SRC
 
 Trabalhando com NULL
 
+#+BEGIN_SRC sql
 mysql> SELECT emp_id, fname, lname, superior_emp_id
     ->   FROM employee
     ->  WHERE superior_emp_id IS NULL;
@@ -516,13 +556,15 @@ mysql> SELECT emp_id, fname, lname, superior_emp_id
 mysql> SELECT emp_id, fname, lname, superior_emp_id
     ->   FROM employee
     ->  WHERE superior_emp_id != 6;
+#+END_SRC
 
 (o de cima não retorna o valor NULL que existe na tabela, o debaixo sim)
 
+#+BEGIN_SRC sql
 mysql> SELECT emp_id, fname, lname, superior_emp_id
     ->   FROM employee
     ->  WHERE superior_emp_id != 6 OR superior_emp_id IS NULL;
-
+#+END_SRC
 * Realizando INNER JOIN
 * Usando Subconsultas como Tabelas
 
